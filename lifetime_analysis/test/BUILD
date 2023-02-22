@@ -117,6 +117,7 @@ cc_test(
 
 cc_test(
     name = "basic",
+    size = "small",
     srcs = ["basic.cc"],
     deps = [
         ":lifetime_analysis_test",
