@@ -3,7 +3,6 @@
 licenses(["notice"])
 
 package(
-    default_applicable_licenses = ["//third_party/crubit:license"],
     default_visibility = [
         "//lifetime_analysis:__subpackages__",
         "//:__subpackages__",

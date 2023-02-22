@@ -22,8 +22,6 @@ load(
     "bindings_for_toolchain_headers",
 )
 
-package(default_applicable_licenses = ["//third_party/crubit:license"])
-
 licenses(["notice"])
 
 with_cc_toolchain_flags(

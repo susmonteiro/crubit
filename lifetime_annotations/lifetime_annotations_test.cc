@@ -7,8 +7,6 @@
 #include <string>
 #include <utility>
 
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 #include "absl/status/status.h"
 #include "common/status_test_matchers.h"
 #include "lifetime_annotations/test/named_func_lifetimes.h"
@@ -18,6 +16,8 @@
 #include "clang/ASTMatchers/ASTMatchers.h"
 #include "clang/Tooling/Tooling.h"
 #include "llvm/Support/FormatVariadic.h"
+#include "gmock/gmock.h"
+#include "gtest/gtest.h"
 
 // This file contains tests both for the "legacy" lifetime annotations
 // (`[[clang::annotate("lifetimes", ...)]]` placed on a function declaration)
@@ -37,11 +37,11 @@ using crubit::IsOkAndHolds;
 using crubit::StatusIs;
 using testing::StartsWith;
 
-bool IsOverloaded(const clang::FunctionDecl* func) {
+bool IsOverloaded(const clang::FunctionDecl *func) {
   return !func->getDeclContext()->lookup(func->getDeclName()).isSingleResult();
 }
 
-std::string QualifiedName(const clang::FunctionDecl* func) {
+std::string QualifiedName(const clang::FunctionDecl *func) {
   std::string str;
   llvm::raw_string_ostream ostream(str);
   func->printQualifiedName(ostream);
@@ -62,8 +62,12 @@ std::string WithLifetimeMacros(absl::string_view code) {
     #define $2(l1, l2) [[clang::annotate_type("lifetime", #l1, #l2)]]
     #define $3(l1, l2, l3) [[clang::annotate_type("lifetime", #l1, #l2, #l3)]]
   )";
+
+  char buffer[128];
+
   for (char l = 'a'; l <= 'z'; ++l) {
-    absl::StrAppendFormat(&result, "#define $%c $(%c)\n", l, l);
+    std::sprintf(buffer, "#define $%c $(%c)\n", l, l);
+    absl::StrAppend(&result, buffer);
   }
   absl::StrAppend(&result, "#define $static $(static)\n");
   absl::StrAppend(&result, code);
@@ -71,26 +75,26 @@ std::string WithLifetimeMacros(absl::string_view code) {
 }
 
 class LifetimeAnnotationsTest : public testing::Test {
- protected:
+protected:
   absl::StatusOr<NamedFuncLifetimes> GetNamedLifetimeAnnotations(
       absl::string_view code,
-      const clang::tooling::FileContentMappings& file_contents =
+      const clang::tooling::FileContentMappings &file_contents =
           clang::tooling::FileContentMappings(),
       bool skip_templates = true) {
     absl::StatusOr<NamedFuncLifetimes> result;
     bool success = runOnCodeWithLifetimeHandlers(
         llvm::StringRef(code.data(), code.size()),
-        [&result, skip_templates](
-            clang::ASTContext& ast_context,
-            const LifetimeAnnotationContext& lifetime_context) {
+        [&result,
+         skip_templates](clang::ASTContext &ast_context,
+                         const LifetimeAnnotationContext &lifetime_context) {
           using clang::ast_matchers::findAll;
           using clang::ast_matchers::functionDecl;
           using clang::ast_matchers::match;
 
           NamedFuncLifetimes named_func_lifetimes;
-          for (const auto& node :
+          for (const auto &node :
                match(findAll(functionDecl().bind("func")), ast_context)) {
-            if (const auto* func =
+            if (const auto *func =
                     node.getNodeAs<clang::FunctionDecl>("func")) {
               // Skip various categories of function, unless explicitly
               // requested:
@@ -352,27 +356,27 @@ TEST_F(LifetimeAnnotationsTest,
 }
 
 TEST_F(LifetimeAnnotationsTest, LifetimeElision_FailureTooFewInputLifetimes) {
-  EXPECT_THAT(GetNamedLifetimeAnnotations(R"(
+  EXPECT_THAT(
+      GetNamedLifetimeAnnotations(R"(
         #pragma clang lifetime_elision
         int* f();
   )"),
-              IsOkAndHolds(LifetimesAre(
-                  {{"f",
-                    "ERROR: Cannot elide output lifetimes for 'f' because it "
-                    "is a non-member function that does not have exactly one "
-                    "input lifetime"}})));
+      IsOkAndHolds(LifetimesAre(
+          {{"f", "ERROR: Cannot elide output lifetimes for 'f' because it "
+                 "is a non-member function that does not have exactly one "
+                 "input lifetime"}})));
 }
 
 TEST_F(LifetimeAnnotationsTest, LifetimeElision_FailureTooManyInputLifetimes) {
-  EXPECT_THAT(GetNamedLifetimeAnnotations(R"(
+  EXPECT_THAT(
+      GetNamedLifetimeAnnotations(R"(
         #pragma clang lifetime_elision
         int* f(int**);
   )"),
-              IsOkAndHolds(LifetimesAre(
-                  {{"f",
-                    "ERROR: Cannot elide output lifetimes for 'f' because it "
-                    "is a non-member function that does not have exactly one "
-                    "input lifetime"}})));
+      IsOkAndHolds(LifetimesAre(
+          {{"f", "ERROR: Cannot elide output lifetimes for 'f' because it "
+                 "is a non-member function that does not have exactly one "
+                 "input lifetime"}})));
 }
 
 TEST_F(LifetimeAnnotationsTest, LifetimeAnnotation_NoLifetimes) {
@@ -495,29 +499,28 @@ TEST_F(LifetimeAnnotationsTest, LifetimeAnnotation_LifetimeParameterizedType) {
 TEST_F(
     LifetimeAnnotationsTest,
     LifetimeAnnotation_LifetimeParameterizedType_Invalid_WrongNumberOfLifetimes) {
-  EXPECT_THAT(
-      GetNamedLifetimeAnnotations(WithLifetimeMacros(R"(
+  EXPECT_THAT(GetNamedLifetimeAnnotations(WithLifetimeMacros(R"(
     struct [[clang::annotate("lifetime_params", "a", "b")]] S_param {};
 
     void f(S_param $3(a, b, c) s);
   )")),
-      IsOkAndHolds(LifetimesAre({{"f",
-                                  "ERROR: Type has 2 lifetime parameters but 3 "
-                                  "lifetime arguments were given"}})));
+              IsOkAndHolds(LifetimesAre(
+                  {{"f", "ERROR: Type has 2 lifetime parameters but 3 "
+                         "lifetime arguments were given"}})));
 }
 
 TEST_F(
     LifetimeAnnotationsTest,
     LifetimeAnnotation_LifetimeParameterizedType_Invalid_MultipleAnnotateAttributes) {
-  EXPECT_THAT(GetNamedLifetimeAnnotations(WithLifetimeMacros(R"(
+  EXPECT_THAT(
+      GetNamedLifetimeAnnotations(WithLifetimeMacros(R"(
     struct [[clang::annotate("lifetime_params", "a", "b")]] S_param {};
 
     void f(S_param $a $b s);
   )")),
-              IsOkAndHolds(LifetimesAre(
-                  {{"f",
-                    "ERROR: Only one `[[annotate_type(\"lifetime\", ...)]]` "
-                    "attribute may be placed on a type"}})));
+      IsOkAndHolds(LifetimesAre(
+          {{"f", "ERROR: Only one `[[annotate_type(\"lifetime\", ...)]]` "
+                 "attribute may be placed on a type"}})));
 }
 
 TEST_F(LifetimeAnnotationsTest, LifetimeAnnotation_Template) {
@@ -652,13 +655,12 @@ TEST_F(LifetimeAnnotationsTest, LifetimeAnnotation_Invalid_ThisOnFreeFunction) {
   )")),
       IsOkAndHolds(LifetimesAre(
           {{"f", "ERROR: Invalid lifetime annotation: too many lifetimes"}})));
-  EXPECT_THAT(
-      GetNamedLifetimeAnnotations(WithLifetimeMacros(R"(
+  EXPECT_THAT(GetNamedLifetimeAnnotations(WithLifetimeMacros(R"(
         int* $a f(int* $a) $a;
   )")),
-      IsOkAndHolds(LifetimesAre({{"f",
-                                  "ERROR: Encountered a `this` lifetime on a "
-                                  "function with no `this` parameter"}})));
+              IsOkAndHolds(LifetimesAre(
+                  {{"f", "ERROR: Encountered a `this` lifetime on a "
+                         "function with no `this` parameter"}})));
 }
 
 TEST_F(LifetimeAnnotationsTest, LifetimeAnnotation_Invalid_WrongNumber) {
@@ -727,7 +729,7 @@ TEST_F(LifetimeAnnotationsTest, LifetimeAnnotation_ReturnFunctionPtr) {
               IsOkAndHolds(LifetimesAre({{"f", "a -> ((b -> b), static)"}})));
 }
 
-}  // namespace
-}  // namespace lifetimes
-}  // namespace tidy
-}  // namespace clang
+} // namespace
+} // namespace lifetimes
+} // namespace tidy
+} // namespace clang

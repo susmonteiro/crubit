@@ -7,8 +7,6 @@ load(
     "rust_test",
 )
 
-package(default_applicable_licenses = ["//third_party/crubit:license"])
-
 licenses(["notice"])
 
 # The current Rust toolchain uses shared libraries for rustc_driver and friends, and we don't have

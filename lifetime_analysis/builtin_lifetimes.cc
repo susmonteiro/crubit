@@ -25,20 +25,21 @@ namespace lifetimes {
 namespace {
 
 class ForwardAndMoveFactory : public FunctionLifetimeFactory {
-  llvm::Expected<ValueLifetimes> CreateThisLifetimes(
-      clang::QualType type, const clang::Expr*) const override {
+  llvm::Expected<ValueLifetimes>
+  CreateThisLifetimes(clang::QualType type,
+                      const clang::Expr *) const override {
     return CreateParamLifetimes(type, clang::TypeLoc());
   }
-  llvm::Expected<ValueLifetimes> CreateParamLifetimes(
-      clang::QualType type, clang::TypeLoc) const override {
+  llvm::Expected<ValueLifetimes>
+  CreateParamLifetimes(clang::QualType type, clang::TypeLoc) const override {
     return ValueLifetimes::Create(
-        type, [](const clang::Expr*) { return Lifetime::CreateVariable(); });
+        type, [](const clang::Expr *) { return Lifetime::CreateVariable(); });
   }
 
   llvm::Expected<ValueLifetimes> CreateReturnLifetimes(
       clang::QualType type, clang::TypeLoc,
-      const llvm::SmallVector<ValueLifetimes>& param_lifetimes,
-      const std::optional<ValueLifetimes>& /*this_lifetimes*/) const override {
+      const llvm::SmallVector<ValueLifetimes> &param_lifetimes,
+      const std::optional<ValueLifetimes> & /*this_lifetimes*/) const override {
     assert(param_lifetimes.size() == 1);
     // `forward` and `move` convert from one type of reference to the other; the
     // lifetimes in the pointees of these references are the same.
@@ -47,54 +48,54 @@ class ForwardAndMoveFactory : public FunctionLifetimeFactory {
   }
 };
 
-}  // namespace
+} // namespace
 
-FunctionLifetimesOrError GetBuiltinLifetimes(const clang::FunctionDecl* decl) {
+FunctionLifetimesOrError GetBuiltinLifetimes(const clang::FunctionDecl *decl) {
   unsigned builtin_id = decl->getBuiltinID();
-  const auto& builtin_info = decl->getASTContext().BuiltinInfo;
+  const auto &builtin_info = decl->getASTContext().BuiltinInfo;
   assert(builtin_id != 0);
 
   if (!builtin_info.hasPtrArgsOrResult(builtin_id) &&
       !builtin_info.hasReferenceArgsOrResult(builtin_id)) {
     return FunctionLifetimes::CreateForDecl(
                decl,
-               FunctionLifetimeFactorySingleCallback([](const clang::Expr*) {
+               FunctionLifetimeFactorySingleCallback([](const clang::Expr *) {
                  assert(false);
                  return Lifetime();
                }))
         .get();
   }
   switch (builtin_id) {
-    case clang::Builtin::BI__builtin_addressof:
-      return ParseLifetimeAnnotations(decl, "a -> a").get();
-    case clang::Builtin::BIstrtod:
-    case clang::Builtin::BIstrtof:
-      return ParseLifetimeAnnotations(decl, "a, (a, b)").get();
-    case clang::Builtin::BIstrtoll:
-    case clang::Builtin::BIstrtol:
-      return ParseLifetimeAnnotations(decl, "a, (a, b), ()").get();
-    case clang::Builtin::BI__builtin_memchr:
-      return ParseLifetimeAnnotations(decl, "a, (), () -> a").get();
-    case clang::Builtin::BI__builtin_strchr:
-    case clang::Builtin::BI__builtin_strrchr:
-      return ParseLifetimeAnnotations(decl, "a, () -> a").get();
-    case clang::Builtin::BI__builtin_strstr:
-    case clang::Builtin::BI__builtin_strpbrk:
-      return ParseLifetimeAnnotations(decl, "a, b -> a").get();
-    case clang::Builtin::BIforward:
-    case clang::Builtin::BImove: {
-      FunctionLifetimes result;
-      return FunctionLifetimes::CreateForDecl(decl, ForwardAndMoveFactory())
-          .get();
-    }
-    // TODO(veluca): figure out variadic functions.
-    default:
-      return FunctionAnalysisError(
-          ("Unknown builtin: '" + builtin_info.getName(builtin_id) + "'")
-              .str());
+  case clang::Builtin::BI__builtin_addressof:
+    return ParseLifetimeAnnotations(decl, "a -> a").get();
+  case clang::Builtin::BIstrtod:
+  case clang::Builtin::BIstrtof:
+    return ParseLifetimeAnnotations(decl, "a, (a, b)").get();
+  case clang::Builtin::BIstrtoll:
+  case clang::Builtin::BIstrtol:
+    return ParseLifetimeAnnotations(decl, "a, (a, b), ()").get();
+  case clang::Builtin::BI__builtin_memchr:
+    return ParseLifetimeAnnotations(decl, "a, (), () -> a").get();
+  case clang::Builtin::BI__builtin_strchr:
+  case clang::Builtin::BI__builtin_strrchr:
+    return ParseLifetimeAnnotations(decl, "a, () -> a").get();
+  case clang::Builtin::BI__builtin_strstr:
+  case clang::Builtin::BI__builtin_strpbrk:
+    return ParseLifetimeAnnotations(decl, "a, b -> a").get();
+  case clang::Builtin::BIforward:
+  case clang::Builtin::BImove: {
+    FunctionLifetimes result;
+    return FunctionLifetimes::CreateForDecl(decl, ForwardAndMoveFactory())
+        .get();
+  }
+  // TODO(veluca): figure out variadic functions.
+  default:
+    return FunctionAnalysisError("Unknown builtin: '" +
+                                 std::string(builtin_info.getName(builtin_id)) +
+                                 "'");
   }
 }
 
-}  // namespace lifetimes
-}  // namespace tidy
-}  // namespace clang
+} // namespace lifetimes
+} // namespace tidy
+} // namespace clang
