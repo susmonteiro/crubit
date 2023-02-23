@@ -7,20 +7,20 @@
 
 #include <string>
 
-#include "gtest/gtest.h"
 #include "absl/container/flat_hash_map.h"
 #include "lifetime_analysis/analyze.h"
 #include "lifetime_annotations/test/named_func_lifetimes.h"
+#include "gtest/gtest.h"
 
 namespace clang {
 namespace tidy {
 namespace lifetimes {
 
 class LifetimeAnalysisTest : public testing::Test {
- protected:
+protected:
   void TearDown() override;
 
-  static std::string QualifiedName(const clang::FunctionDecl* func);
+  static std::string QualifiedName(const clang::FunctionDecl *func);
 
   struct GetLifetimesOptions {
     GetLifetimesOptions()
@@ -29,21 +29,21 @@ class LifetimeAnalysisTest : public testing::Test {
     bool include_implicit_methods;
   };
 
-  NamedFuncLifetimes GetLifetimes(
-      llvm::StringRef source_code,
-      const GetLifetimesOptions& options = GetLifetimesOptions());
+  NamedFuncLifetimes
+  GetLifetimes(llvm::StringRef source_code,
+               const GetLifetimesOptions &options = GetLifetimesOptions());
 
   NamedFuncLifetimes GetLifetimesWithPlaceholder(llvm::StringRef source_code);
 
   void AnalyzeBrokenCode() { analyze_broken_code_ = true; }
 
- private:
+private:
   absl::flat_hash_map<std::string, FunctionDebugInfo> debug_info_map_;
   bool analyze_broken_code_ = false;
 };
 
-}  // namespace lifetimes
-}  // namespace tidy
-}  // namespace clang
+} // namespace lifetimes
+} // namespace tidy
+} // namespace clang
 
-#endif  // DEVTOOLS_RUST_CC_INTEROP_LIFETIME_ANALYSIS_TEST_LIFETIME_ANALYSIS_TEST_H_
+#endif // DEVTOOLS_RUST_CC_INTEROP_LIFETIME_ANALYSIS_TEST_LIFETIME_ANALYSIS_TEST_H_

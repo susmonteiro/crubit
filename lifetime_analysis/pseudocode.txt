@@ -1,0 +1,16 @@
+STEP 1: 
+
+STEP 2: Given a points-to set, return the lifetime
+    - object repository: 
+        - repository for the objects used in the lifetime analysis of a single function
+        - establishes a relationship between AST nodes and the objects that represent them
+        - it is not part of the lattice (does not store states that change during the analysis)
+    - points-to set
+    - constraints: applied to the lifetimes
+    - lifetime substitutions: built from the function's body
+1. get original function lifetimes, from the object repository
+    - find out about this
+- apply the constraints to the function lifetimes
+    - also see what this means
+- diagnose return local
+    - find out about this

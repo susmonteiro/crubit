@@ -125,6 +125,19 @@ cc_test(
     ],
 )
 
+# size = "small" -> sets the type of test (can be small, moderate, etc.)
+# timeout = "short" -> sets the minimum time the test should run for (can be short, medium, etc.)
+
+cc_test(
+    name = "tmp",
+    size = "small",
+    srcs = ["tmp.cc"],
+    deps = [
+        ":lifetime_analysis_test",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
 cc_test(
     name = "static_lifetime",
     srcs = ["static_lifetime.cc"],

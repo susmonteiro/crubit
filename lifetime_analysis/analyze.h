@@ -42,25 +42,25 @@ struct FunctionDebugInfo {
 // requiring them to have the same exact Lifetimes. They have the same
 // structure if unique vs reoccuring Lifetimes in `a` and `b` are found
 // in the same positions.
-bool IsIsomorphic(const FunctionLifetimes& a, const FunctionLifetimes& b);
+bool IsIsomorphic(const FunctionLifetimes &a, const FunctionLifetimes &b);
 
 // A map from an analyzed function to the corresponding debug info.
 using FunctionDebugInfoMap =
-    llvm::DenseMap<const clang::FunctionDecl*, FunctionDebugInfo>;
+    llvm::DenseMap<const clang::FunctionDecl *, FunctionDebugInfo>;
 
 // Runs a static analysis on `func` and returns the result.
-FunctionLifetimesOrError AnalyzeFunction(
-    const clang::FunctionDecl* func,
-    const LifetimeAnnotationContext& lifetime_context,
-    FunctionDebugInfo* debug_info = nullptr);
+FunctionLifetimesOrError
+AnalyzeFunction(const clang::FunctionDecl *func,
+                const LifetimeAnnotationContext &lifetime_context,
+                FunctionDebugInfo *debug_info = nullptr);
 
 // Runs a static analysis on all function definitions in `tu`.
 // The map that is returned references functions by their canonical declaration.
-llvm::DenseMap<const clang::FunctionDecl*, FunctionLifetimesOrError>
-AnalyzeTranslationUnit(const clang::TranslationUnitDecl* tu,
-                       const LifetimeAnnotationContext& lifetime_context,
+llvm::DenseMap<const clang::FunctionDecl *, FunctionLifetimesOrError>
+AnalyzeTranslationUnit(const clang::TranslationUnitDecl *tu,
+                       const LifetimeAnnotationContext &lifetime_context,
                        DiagnosticReporter diag_reporter = {},
-                       FunctionDebugInfoMap* debug_info = nullptr);
+                       FunctionDebugInfoMap *debug_info = nullptr);
 
 // Callback that is used to report function analysis results.
 // Do not retain the `FunctionDecl*`, the `FunctionLifetimes`, or other objects
@@ -69,21 +69,21 @@ AnalyzeTranslationUnit(const clang::TranslationUnitDecl* tu,
 // particular, note that this also applies to `clang::Type`s contained in the
 // `FunctionLifetimes`.
 using FunctionAnalysisResultCallback =
-    std::function<void(const clang::FunctionDecl* func,
-                       const FunctionLifetimesOrError& lifetimes_or_error)>;
+    std::function<void(const clang::FunctionDecl *func,
+                       const FunctionLifetimesOrError &lifetimes_or_error)>;
 
 // Runs a static analysis on all function definitions in `tu`.
 // Analyzes and reports results for uninstantiated templates by instantiating
 // them with placeholder types, reporting results via `result_callback`.
 void AnalyzeTranslationUnitWithTemplatePlaceholder(
-    const clang::TranslationUnitDecl* tu,
-    const LifetimeAnnotationContext& lifetime_context,
-    const FunctionAnalysisResultCallback& result_callback,
+    const clang::TranslationUnitDecl *tu,
+    const LifetimeAnnotationContext &lifetime_context,
+    const FunctionAnalysisResultCallback &result_callback,
     DiagnosticReporter diag_reporter = {},
-    FunctionDebugInfoMap* debug_info = nullptr);
+    FunctionDebugInfoMap *debug_info = nullptr);
 
-}  // namespace lifetimes
-}  // namespace tidy
-}  // namespace clang
+} // namespace lifetimes
+} // namespace tidy
+} // namespace clang
 
-#endif  // DEVTOOLS_RUST_CC_INTEROP_LIFETIME_ANALYSIS_ANALYZE_H_
+#endif // DEVTOOLS_RUST_CC_INTEROP_LIFETIME_ANALYSIS_ANALYZE_H_

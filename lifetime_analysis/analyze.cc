@@ -714,6 +714,13 @@ llvm::Error DiagnoseReturnLocal(const clang::FunctionDecl *func,
   return llvm::Error::success();
 }
 
+// Step x: Given a points-to set, return the lifetime
+// * get original function lifetimes
+// ! find out about this
+// * apply the constraints to the function lifetimes
+// ! also see what this means
+// * diagnose return local
+// ! find out about this
 // Constructs the FunctionLifetimes for a function, given a PointsToMap,
 // ObjectRepository, and LifetimeSubstitutions that have been built from the
 // function's body, which would include the function's parameters. It's also
@@ -726,7 +733,7 @@ ConstructFunctionLifetimes(const clang::FunctionDecl *func,
                            const DiagnosticReporter &diag_reporter) {
   if (func->getDefinition()) {
     func = func->getDefinition();
-  } else {
+  } else { // * Virtual method
     // This can happen only when `func` is a pure virtual method.
     const auto *cxxmethod = clang::dyn_cast<clang::CXXMethodDecl>(func);
     assert(cxxmethod && cxxmethod->isPure());
@@ -737,7 +744,10 @@ ConstructFunctionLifetimes(const clang::FunctionDecl *func,
       func = func->getCanonicalDecl();
     }
   }
-
+  // ? object repository
+  // * points_to_map
+  // ? constraints
+  // * lifetime substitutions: built from the function's body
   auto &[object_repository, points_to_map, constraints, subst] = analysis;
 
   FunctionLifetimes result;
