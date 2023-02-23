@@ -99,6 +99,8 @@ class ValueLifetimes {
     return Create(type, clang::TypeLoc(), lifetime_factory);
   }
 
+  // * static methods: belong to the class instead of an instance of it
+  // + can be called without create an instance
   // Creates a ValueLifetimes for a pointer to a given ObjectLifetimes.
   static ValueLifetimes PointerTo(clang::QualType pointer_type,
                                   const ObjectLifetimes& object);

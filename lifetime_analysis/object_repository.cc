@@ -544,6 +544,9 @@ const Object* ObjectRepository::GetOriginalParameterValue(
 
 FunctionLifetimes ObjectRepository::GetOriginalFunctionLifetimes() const {
   FunctionLifetimes ret;
+  // * lambda function
+  // + given an object, check if it has an initial lifetime
+  // + if it does, return the associated lifetime
   auto get_initial_lifetimes_or_die = [&](const Object* object) {
     auto iter = initial_object_lifetimes_.find(object);
     if (iter == initial_object_lifetimes_.end()) {
