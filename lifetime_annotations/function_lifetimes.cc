@@ -20,9 +20,15 @@ namespace clang {
 namespace tidy {
 namespace lifetimes {
 
+// * 1. this (object parameter)
+// * 2. parameters (in increasing order)
+// * 3. return type
+
 llvm::Expected<FunctionLifetimes> FunctionLifetimes::CreateForDecl(
     const clang::FunctionDecl* func,
     const FunctionLifetimeFactory& lifetime_factory) {
+  // + represents a type with its qualifiers: const, volatile, restrict, etc
+  // + the clang AST contains QualTypes to describe the types of variables, expressions, etc
   clang::QualType this_type;
   if (auto method = clang::dyn_cast<clang::CXXMethodDecl>(func);
       method && !method->isStatic()) {
