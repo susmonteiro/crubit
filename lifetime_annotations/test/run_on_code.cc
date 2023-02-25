@@ -16,53 +16,54 @@ namespace lifetimes {
 namespace {
 
 class RunOnCodeASTConsumer : public clang::ASTConsumer {
- public:
+public:
   explicit RunOnCodeASTConsumer(
-      const std::function<void(clang::ASTContext&,
-                               const LifetimeAnnotationContext&)>& operation,
+      const std::function<void(clang::ASTContext &,
+                               const LifetimeAnnotationContext &)> &operation,
       std::shared_ptr<LifetimeAnnotationContext> lifetime_context)
       : operation_(operation), lifetime_context_(lifetime_context) {}
 
-  void HandleTranslationUnit(clang::ASTContext& ast_context) override {
+  void HandleTranslationUnit(clang::ASTContext &ast_context) override {
     operation_(ast_context, *lifetime_context_);
   }
 
- private:
-  const std::function<void(clang::ASTContext&,
-                           const LifetimeAnnotationContext&)>& operation_;
+private:
+  const std::function<void(clang::ASTContext &,
+                           const LifetimeAnnotationContext &)> &operation_;
   std::shared_ptr<LifetimeAnnotationContext> lifetime_context_;
 };
 
 class RunOnCodeAction : public clang::ASTFrontendAction {
- public:
+public:
   explicit RunOnCodeAction(
-      const std::function<void(clang::ASTContext&,
-                               const LifetimeAnnotationContext&)>& operation,
+      const std::function<void(clang::ASTContext &,
+                               const LifetimeAnnotationContext &)> &operation,
       std::shared_ptr<LifetimeAnnotationContext> lifetime_context)
       : operation_(operation), lifetime_context_(lifetime_context) {}
 
-  std::unique_ptr<clang::ASTConsumer> CreateASTConsumer(
-      clang::CompilerInstance& compiler, llvm::StringRef) override {
+  std::unique_ptr<clang::ASTConsumer>
+  CreateASTConsumer(clang::CompilerInstance &compiler,
+                    llvm::StringRef) override {
     AddLifetimeAnnotationHandlers(compiler.getPreprocessor(),
                                   lifetime_context_);
     return std::make_unique<RunOnCodeASTConsumer>(operation_,
                                                   lifetime_context_);
   }
 
- private:
-  const std::function<void(clang::ASTContext&,
-                           const LifetimeAnnotationContext&)>& operation_;
+private:
+  const std::function<void(clang::ASTContext &,
+                           const LifetimeAnnotationContext &)> &operation_;
   std::shared_ptr<LifetimeAnnotationContext> lifetime_context_;
 };
 
-}  // namespace
+} // namespace
 
 bool runOnCodeWithLifetimeHandlers(
     llvm::StringRef code,
-    const std::function<void(clang::ASTContext&,
-                             const LifetimeAnnotationContext&)>& operation,
+    const std::function<void(clang::ASTContext &,
+                             const LifetimeAnnotationContext &)> &operation,
     llvm::ArrayRef<std::string> args,
-    const clang::tooling::FileContentMappings& file_contents) {
+    const clang::tooling::FileContentMappings &file_contents) {
   auto context = std::make_shared<LifetimeAnnotationContext>();
   return clang::tooling::runToolOnCodeWithArgs(
       std::make_unique<RunOnCodeAction>(operation, context), code, args,
@@ -70,6 +71,6 @@ bool runOnCodeWithLifetimeHandlers(
       std::make_shared<clang::PCHContainerOperations>(), file_contents);
 }
 
-}  // namespace lifetimes
-}  // namespace tidy
-}  // namespace clang
+} // namespace lifetimes
+} // namespace tidy
+} // namespace clang

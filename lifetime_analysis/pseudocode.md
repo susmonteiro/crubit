@@ -69,27 +69,59 @@ Variables -> snake_case
 
 GetLifetimes(source_code, options) -> lifetimes {
   // verifies if the analysis was successful and if so returns the correct lifetimes
-  lifetimes = RunAnalysisOnCode(source_code, runAnalysis, ...)
+  lifetimes = RunAnalysisOnCode(source_code, runAnalysisLF, ...)
   return lifetimes
 }
 
 >> This is the lambda function `test`
-runAnalysis() {
+
+runAnalysisLF() {
   analysis_result = new Map<func_decls, lifetimes>()
 
-  AnalyzeTranslationUnit(ast_context, lifetime_context, ...)
+  analysis_result = AnalyzeTranslationUnit(ast_context, lifetime_context, ...)
 
   for [func, lifetimes] in analysis_result {
     resultCallback(func, lifetimes) // build the output that is going to be compared in the tests
   }
 }
 
->> This is the lambda function `result_callback`
-resultCallback(func, lifetimes) {
+<!-- TODO not important -->
+>> returns whether the analysis was successful
 
+RunAnalysisOnCode(source_code, runAnalysisLF) -> bool {
+  create(lifetime_context) // store information about lifetime annotations
+  boolean = RunToolOnCodeWithArgs(runAnalysisLF, lifetime_context, source_code)
+  return boolean
+}
+<!-- ! This function is part of Clang -->
+
+>> frontend_action: analysis to be performed in the code (in this case, runAnalysisLF with the context lifetime_context)
+
+RunToolOnCodeWithArgs(frontend_action = {runAnalysisLF, lifetime_context}, source_code) -> bool {
+  (...)
 }
 
+
+
+
+
 ```
+
+## Clang Tooling
+
+Function `runToolOnCodeWithArgs()` then calls another function with the same name `runToolOnCodeWithArgs()`, which runs a specified `frontend_action` on a provided C++ code. In this case, it runs the lambda function `test` (or `runAnalysisLF` in the pseudocode) on the test code provided.
+
+Overview of function `runToolOnCodeWithArgs()`:
+
+1. creates an `ASTUnit` object from the `source_code`. It is a pre-built representation of the C++ code that can be easily traversed and analyzed
+2. sets up the `CompilerInstance`, which is responsible for managing the compilation process
+3. takes care of creating and setting up other necessary components
+4. runs the `FrontendAction` on the `ASTUnit`
+5. return a boolean stating whether the execution was successful or not
+
+> The type of analysis to be performed is defined in the `FrontendAction` (which is the `lifetime_analysis`) in this case.
+
+The `runToolOnCodeWithArgs` function simply provides a framework for running the tool and invoking the `FrontendAction`.
 
 ```
 
