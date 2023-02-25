@@ -744,9 +744,10 @@ ConstructFunctionLifetimes(const clang::FunctionDecl *func,
       func = func->getCanonicalDecl();
     }
   }
-  // ? object repository
+  // * object repository:
+  // + objects used in the lifetime analysis of a single function
   // * points_to_map
-  // ? constraints
+  // ? lifetime constraints
   // * lifetime substitutions: built from the function's body
   auto &[object_repository, points_to_map, constraints, subst] = analysis;
 
