@@ -5,6 +5,7 @@
 #include "lifetime_analysis/analyze.h"
 
 #include <algorithm>
+#include <iostream>
 #include <map>
 #include <memory>
 #include <optional>
@@ -45,6 +46,8 @@
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Error.h"
+
+using namespace std;
 
 namespace clang {
 namespace tidy {
@@ -731,6 +734,9 @@ llvm::Expected<FunctionLifetimes>
 ConstructFunctionLifetimes(const clang::FunctionDecl *func,
                            FunctionAnalysis analysis,
                            const DiagnosticReporter &diag_reporter) {
+
+  cout << "Inside ConstructFunctionLifetimes" << endl; // DEBUG
+
   if (func->getDefinition()) {
     func = func->getDefinition();
   } else { // * Virtual method
@@ -1466,6 +1472,9 @@ AnalyzeFunction(const clang::FunctionDecl *func,
   return analyzed.lookup(func);
 }
 
+// ! The function below is called in the file
+// ! lifetime_analysis_test.cc
+
 llvm::DenseMap<const clang::FunctionDecl *, FunctionLifetimesOrError>
 AnalyzeTranslationUnit(const clang::TranslationUnitDecl *tu,
                        const LifetimeAnnotationContext &lifetime_context,
@@ -1491,6 +1500,9 @@ AnalyzeTranslationUnit(const clang::TranslationUnitDecl *tu,
 
   return result;
 }
+
+// ! The function below is called in the file
+// ! lifetime_analysis_test.cc
 
 void AnalyzeTranslationUnitWithTemplatePlaceholder(
     const clang::TranslationUnitDecl *tu,
