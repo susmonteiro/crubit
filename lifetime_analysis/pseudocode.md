@@ -1,4 +1,5 @@
-ValueLifetimes: class that represents the lifetimes of a value
+### ValueLifetimes: 
+Class that represents the lifetimes of a value
 
 - specification:
   - non-reference-like types -> 0
@@ -6,4 +7,3 @@ ValueLifetimes: class that represents the lifetimes of a value
   - structs with template arguments/
     lifetime parameters -> arbitrary
 - lifetimes are created in **post-order** in the tree of lifetimes
-
