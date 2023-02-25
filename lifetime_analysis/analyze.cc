@@ -47,8 +47,6 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Error.h"
 
-using namespace std;
-
 namespace clang {
 namespace tidy {
 namespace lifetimes {
@@ -59,6 +57,10 @@ struct VisitedCallStackEntry {
   bool in_cycle;
   bool in_overrides_traversal;
 };
+
+void debug(std::string text) {
+  std::cout << ">> " << text << std::endl; // DEBUG
+}
 
 // A map from base methods to overriding methods.
 using BaseToOverrides =
@@ -140,6 +142,9 @@ std::string VariableLabel(absl::string_view name, const Object *object) {
 std::string PointsToEdgesDot(const ObjectRepository &object_repository,
                              const PointsToMap &points_to_map,
                              absl::string_view name_prefix) {
+
+  debug("PointsToEdgesDot"); // DEBUG
+
   std::vector<std::string> lines;
   llvm::DenseSet<const Object *> all_objects, var_objects;
 
@@ -254,6 +259,9 @@ std::string ConstraintsDot(const ObjectRepository &object_repository,
 
 std::string CfgBlockLabel(const clang::CFGBlock *block, const clang::CFG &cfg,
                           const clang::ASTContext &ast_context) {
+
+  debug("CfgBlockLabel");
+
   std::string block_name = absl::StrCat("B", block->getBlockID());
   if (block == &cfg.getEntry()) {
     absl::StrAppend(&block_name, " (ENTRY)");
@@ -735,7 +743,7 @@ ConstructFunctionLifetimes(const clang::FunctionDecl *func,
                            FunctionAnalysis analysis,
                            const DiagnosticReporter &diag_reporter) {
 
-  cout << "Inside ConstructFunctionLifetimes" << endl; // DEBUG
+  debug("ConstructFunctionLifetimes"); // DEBUG
 
   if (func->getDefinition()) {
     func = func->getDefinition();
@@ -774,6 +782,8 @@ ConstructFunctionLifetimes(const clang::FunctionDecl *func,
 llvm::Expected<llvm::DenseSet<const clang::FunctionDecl *>>
 GetDefaultedFunctionCallees(const clang::FunctionDecl *func) {
   assert(func->isDefaulted());
+
+  debug("GetDefaultedFunctionCallees"); // DEBUG
 
   // TODO(b/230693710): Add complete support for defaulted functions.
 
@@ -819,6 +829,8 @@ GetCallees(const clang::FunctionDecl *func) {
   using clang::ast_matchers::match;
   using clang::ast_matchers::memberExpr;
   using clang::ast_matchers::to;
+
+  debug("Inside GetCallees"); // DEBUG
 
   func = func->getDefinition();
 
@@ -887,6 +899,7 @@ bool FindAndMarkCycleWithFunc(
   // where `func` was seen in `visited` as being part of a cycle. Then a cycle
   // graph is a contiguous set of functions in the `visited` call stack that are
   // marked as being in a cycle.
+  debug("FindAndMarkCycleWithFunc");
   bool found_cycle = false;
   for (size_t i = visited_call_stack.size(); i > 0; --i) {
     const auto &stack_entry = visited_call_stack[i - 1];

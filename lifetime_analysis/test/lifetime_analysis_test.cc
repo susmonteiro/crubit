@@ -10,12 +10,18 @@
 #include <utility>
 #include <variant>
 
+#include <iostream>
+
 #include "lifetime_annotations/test/run_on_code.h"
 
 namespace clang {
 namespace tidy {
 namespace lifetimes {
 namespace {
+
+void debug(std::string text) {
+  std::cout << ">> " << text << std::endl; // DEBUG
+}
 
 void SaveDotFile(absl::string_view dot, absl::string_view filename_base,
                  absl::string_view test_name, absl::string_view description) {
@@ -41,16 +47,16 @@ void SaveDotFile(absl::string_view dot, absl::string_view filename_base,
   }
 }
 
-}  // namespace
+} // namespace
 
 void LifetimeAnalysisTest::TearDown() {
   if (HasFailure()) {
-    for (const auto& [func, debug_info] : debug_info_map_) {
+    for (const auto &[func, debug_info] : debug_info_map_) {
       std::cerr << debug_info.ast << "\n";
 
       std::cerr << debug_info.object_repository << "\n";
 
-      const char* test_name =
+      const char *test_name =
           testing::UnitTest::GetInstance()->current_test_info()->name();
 
       SaveDotFile(debug_info.points_to_map_dot,
@@ -67,8 +73,8 @@ void LifetimeAnalysisTest::TearDown() {
   }
 }
 
-std::string LifetimeAnalysisTest::QualifiedName(
-    const clang::FunctionDecl* func) {
+std::string
+LifetimeAnalysisTest::QualifiedName(const clang::FunctionDecl *func) {
   // TODO(veluca): figure out how to name overloaded functions.
   std::string str;
   llvm::raw_string_ostream ostream(str);
@@ -77,13 +83,20 @@ std::string LifetimeAnalysisTest::QualifiedName(
   return str;
 }
 
-NamedFuncLifetimes LifetimeAnalysisTest::GetLifetimes(
-    llvm::StringRef source_code, const GetLifetimesOptions& options) {
+// * returns lifetime information for the named functions
+NamedFuncLifetimes
+LifetimeAnalysisTest::GetLifetimes(llvm::StringRef source_code,
+                                   const GetLifetimesOptions &options) {
   NamedFuncLifetimes tu_lifetimes;
 
-  auto test = [&tu_lifetimes, &options, this](
-                  clang::ASTContext& ast_context,
-                  const LifetimeAnnotationContext& lifetime_context) {
+  debug("GetLifetimes"); // DEBUG
+
+  auto test = [&tu_lifetimes, &options,
+               this](clang::ASTContext &ast_context,
+                     const LifetimeAnnotationContext &lifetime_context) {
+    // * ASTContext -> AST of the code to be analyzed
+    // * LifetimeAnnotationContext -> how the lifetime analysis should be done
+
     // This will get called even if the code contains compilation errors.
     // So we need to check to avoid performing an analysis on code that
     // doesn't compile.
@@ -93,10 +106,10 @@ NamedFuncLifetimes LifetimeAnalysisTest::GetLifetimes(
       return;
     }
 
-    auto result_callback = [&tu_lifetimes, &options](
-                               const clang::FunctionDecl* func,
-                               const FunctionLifetimesOrError&
-                                   lifetimes_or_error) {
+    auto result_callback = [&tu_lifetimes,
+                            &options](const clang::FunctionDecl *func,
+                                      const FunctionLifetimesOrError
+                                          &lifetimes_or_error) {
       if (std::holds_alternative<FunctionAnalysisError>(lifetimes_or_error)) {
         tu_lifetimes.Add(
             QualifiedName(func),
@@ -105,18 +118,18 @@ NamedFuncLifetimes LifetimeAnalysisTest::GetLifetimes(
                 std::get<FunctionAnalysisError>(lifetimes_or_error).message));
         return;
       }
-      const auto& func_lifetimes =
+      const auto &func_lifetimes =
           std::get<FunctionLifetimes>(lifetimes_or_error);
 
       // Do not insert in the result set implicitly-defined constructors or
       // assignment operators.
-      if (auto* constructor =
+      if (auto *constructor =
               clang::dyn_cast<clang::CXXConstructorDecl>(func)) {
         if (constructor->isImplicit() && !options.include_implicit_methods) {
           return;
         }
       }
-      if (auto* method = clang::dyn_cast<clang::CXXMethodDecl>(func)) {
+      if (auto *method = clang::dyn_cast<clang::CXXMethodDecl>(func)) {
         if (method->isImplicit() && !options.include_implicit_methods) {
           return;
         }
@@ -126,8 +139,15 @@ NamedFuncLifetimes LifetimeAnalysisTest::GetLifetimes(
     };
 
     FunctionDebugInfoMap func_ptr_debug_info_map;
-    llvm::DenseMap<const clang::FunctionDecl*, FunctionLifetimesOrError>
+    llvm::DenseMap<const clang::FunctionDecl *, FunctionLifetimesOrError>
         analysis_result;
+
+    // * the analysis run is either
+    //   * AnalyzeTransationUnitWithTemplatePlaceholder:
+    //    + if there are placeholders for the lifetimes
+    //   * AnalyzeTranslationUnit:
+    //    + else case
+
     if (options.with_template_placeholder) {
       AnalyzeTranslationUnitWithTemplatePlaceholder(
           ast_context.getTranslationUnitDecl(), lifetime_context,
@@ -138,12 +158,12 @@ NamedFuncLifetimes LifetimeAnalysisTest::GetLifetimes(
           ast_context.getTranslationUnitDecl(), lifetime_context,
           /*diag_reporter=*/{}, &func_ptr_debug_info_map);
 
-      for (const auto& [func, lifetimes_or_error] : analysis_result) {
+      for (const auto &[func, lifetimes_or_error] : analysis_result) {
         result_callback(func, lifetimes_or_error);
       }
     }
 
-    for (auto& [func, debug_info] : func_ptr_debug_info_map) {
+    for (auto &[func, debug_info] : func_ptr_debug_info_map) {
       debug_info_map_.try_emplace(func->getDeclName().getAsString(),
                                   std::move(debug_info));
     }
@@ -165,16 +185,22 @@ NamedFuncLifetimes LifetimeAnalysisTest::GetLifetimes(
     }
   }
 
+  std::cout << "Result lifetimes: " << std::endl
+            << tu_lifetimes << std::endl; // DEBUG
+
   return tu_lifetimes;
 }
 
-NamedFuncLifetimes LifetimeAnalysisTest::GetLifetimesWithPlaceholder(
-    llvm::StringRef source_code) {
+// * this function calls the previous one
+// * it is used in tests where there are placeholders for the lifetimes
+
+NamedFuncLifetimes
+LifetimeAnalysisTest::GetLifetimesWithPlaceholder(llvm::StringRef source_code) {
   GetLifetimesOptions options;
   options.with_template_placeholder = true;
   return GetLifetimes(source_code, options);
 }
 
-}  // namespace lifetimes
-}  // namespace tidy
-}  // namespace clang
+} // namespace lifetimes
+} // namespace tidy
+} // namespace clang

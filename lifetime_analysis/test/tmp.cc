@@ -13,17 +13,13 @@ namespace tidy {
 namespace lifetimes {
 namespace {
 
-TEST_F(LifetimeAnalysisTest, CompilationError) {
-  // Check that we don't analyze code that doesn't compile.
-  // This is a regression test -- we actually used to produce the lifetimes
-  // "a -> a" for this test.
+TEST_F(LifetimeAnalysisTest, ReturnArgumentPtr) {
   EXPECT_THAT(GetLifetimes(R"(
     int* target(int* a) {
-      undefined(&a);
       return a;
     }
   )"),
-              LifetimesAre({{"", "Compilation error -- see log for details"}}));
+              LifetimesAre({{"target", "a -> a"}}));
 }
 
 } // namespace

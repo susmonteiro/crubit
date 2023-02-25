@@ -47,10 +47,53 @@ Function: `ConstructFunctionLifetimes()`
 
 # Pseudocode
 
+## Important files:
+
+- `lifetime_analysis/analyze.cc`
+- `lifetime_analysis/lifetime_analysis.cc`
+- `lifetime_analysis/lifetime_analysis_test.cc`
+
+## How the tests work
+
+1. Call function `GetLifetimes()` which receives a piece of code and returns the lifetime information related to the name functions in that code.
+
+## Actual Pseudocode
+
+Functions -> PascalCase
+Lambda functions -> camelCase
+Variables -> snake_case
+
+```
+>> Let's take the case where there are no placeholders (most cases)
+>> The cases with placeholders are only used in the function_templates.cc tests
+
+GetLifetimes(source_code, options) -> lifetimes {
+  // verifies if the analysis was successful and if so returns the correct lifetimes
+  lifetimes = RunAnalysisOnCode(source_code, runAnalysis, ...)
+  return lifetimes
+}
+
+>> This is the lambda function `test`
+runAnalysis() {
+  analysis_result = new Map<func_decls, lifetimes>()
+
+  AnalyzeTranslationUnit(ast_context, lifetime_context, ...)
+
+  for [func, lifetimes] in analysis_result {
+    resultCallback(func, lifetimes) // build the output that is going to be compared in the tests
+  }
+}
+
+>> This is the lambda function `result_callback`
+resultCallback(func, lifetimes) {
+
+}
+
 ```
 
-<!-- ! Called in the test file lifetime_analysis_test.cc -->
-<!-- TODO -->
+```
+
+>> Not important
 AnalyzeTranslationUnitWithTemplatePlaceholder() {
   AnalyzeTemplateFunctionsInSeparateASTContext()
 
