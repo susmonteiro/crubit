@@ -59,7 +59,8 @@ struct VisitedCallStackEntry {
 };
 
 void debug(std::string text) {
-  std::cout << ">> " << text << std::endl; // DEBUG
+  std::cout << "\033[1;33m[analyze.cc] >> \033[0m" << text
+            << std::endl; // DEBUG
 }
 
 // A map from base methods to overriding methods.
@@ -1110,6 +1111,9 @@ llvm::Error AnalyzeRecursiveFunctions(
   return llvm::Error::success();
 }
 
+// * this function analyzes the lifetimes of a given function in the context of
+// * its caller functions
+
 // The entry point for analyzing a function named by `func`.
 //
 // This function is recursive as it searches for and walks through all CallExpr
@@ -1139,6 +1143,7 @@ void AnalyzeFunctionRecursive(
     const BaseToOverrides &base_to_overrides) {
   // Make sure we're always using the canonical declaration when using the
   // function as a key in maps and sets.
+  // ? what is the canonical function declaration
   func = func->getCanonicalDecl();
 
   // See if we have finished analyzing the function.
@@ -1148,6 +1153,8 @@ void AnalyzeFunctionRecursive(
   bool is_virtual = cxxmethod != nullptr && cxxmethod->isVirtual();
   bool is_pure_virtual = is_virtual && cxxmethod->isPure();
 
+  // + a built in function is a pre-defined function in a programming language
+  // + and consequently we do not want to analyze it
   if (func->getBuiltinID() != 0) {
     return;
   }
@@ -1193,6 +1200,9 @@ void AnalyzeFunctionRecursive(
     return;
   }
 
+  // * methods called by the main function
+  // + the main function is the one being analyzed
+
   auto maybe_callees = GetCallees(func);
   if (!maybe_callees) {
     analyzed[func] = FunctionAnalysisError(maybe_callees.takeError());
@@ -1209,6 +1219,7 @@ void AnalyzeFunctionRecursive(
       .func = func, .in_cycle = false, .in_overrides_traversal = false});
 
   for (auto &callee : maybe_callees.get()) {
+    // * if the callee function is already analyzed, skip it
     if (analyzed.count(callee)) {
       continue;
     }
@@ -1256,11 +1267,17 @@ void AnalyzeFunctionRecursive(
   // recursive cycle graph.
   assert(visited[func_in_visited].func == func);
   if (func_in_visited < visited.size() - 1) {
+    // * this means that func is not at the top of the stack anymore
+    // + therefore there is a cycle
+    // + find all functions in the stack after func and check that all of them
+    // + (including the current function) are in a cycle, otherwise error
+
     for (size_t i = func_in_visited; i < visited.size(); ++i) {
       assert(visited[i].in_cycle);
     }
   }
 
+  // TODO start from here
   // Once we return back here, there are 3 possibilities for `func`.
   //
   // 1. If `func` is part of a cycle, but was not the first entry point of the
@@ -1334,6 +1351,9 @@ void AnalyzeFunctionRecursive(
   visited.resize(func_in_visited);
 }
 
+// * Analyze the lifetime of functions in tu
+// * Collect the analysis results in a dense map
+
 llvm::DenseMap<const clang::FunctionDecl *, FunctionLifetimesOrError>
 AnalyzeTranslationUnitAndCollectTemplates(
     const clang::TranslationUnitDecl *tu,
@@ -1345,7 +1365,13 @@ AnalyzeTranslationUnitAndCollectTemplates(
   llvm::DenseMap<const clang::FunctionDecl *, FunctionLifetimesOrError> result;
   llvm::SmallVector<VisitedCallStackEntry> visited;
 
+  debug("All function definitions");
   for (const clang::FunctionDecl *func : GetAllFunctionDefinitions(tu)) {
+    std::cout << func << std::endl;
+
+    // * uninstantiated_templates -> keep track of templates that have not yet
+    // * been instantiated. Below, if one specialization is found, remove it
+    // * from the `uninstantiated_templates` map
     // Skip templated functions.
     if (func->isTemplated()) {
       clang::FunctionTemplateDecl *template_decl =
@@ -1493,19 +1519,26 @@ AnalyzeTranslationUnit(const clang::TranslationUnitDecl *tu,
                        const LifetimeAnnotationContext &lifetime_context,
                        DiagnosticReporter diag_reporter,
                        FunctionDebugInfoMap *debug_info) {
+  // * tu -> represents the code to be analyzed
+  // * lifetime_context -> contains information about the lifetime annotations
+
   if (!diag_reporter) {
     diag_reporter =
         DiagReporterForDiagEngine(tu->getASTContext().getDiagnostics());
   }
 
+  // * this is used for function templates
   llvm::DenseMap<clang::FunctionTemplateDecl *, const clang::FunctionDecl *>
       uninstantiated_templates;
 
-  // Builds a map from a base method to its overrides within this TU. It will
-  // not find out all the overrides, but still cover (and can partially update)
-  // all the base methods that this TU implements.
+  // * Builds a map from a base method to its overrides within this TU.
+  // ! It will not find out all the overrides,
+  // but still cover (and can partially update) all the base methods that this
+  // TU implements.
   auto base_to_overrides = BuildBaseToOverrides(tu);
 
+  // * Map that associates each function declaration with the respective
+  // * lifetimes
   llvm::DenseMap<const clang::FunctionDecl *, FunctionLifetimesOrError> result =
       AnalyzeTranslationUnitAndCollectTemplates(
           tu, lifetime_context, diag_reporter, debug_info,
@@ -1535,6 +1568,8 @@ void AnalyzeTranslationUnitWithTemplatePlaceholder(
   // all the base methods that this TU implements.
   auto base_to_overrides = BuildBaseToOverrides(tu);
 
+  // * map that associates each function declaration with the respective
+  // * lifetimes
   llvm::DenseMap<const clang::FunctionDecl *, FunctionLifetimesOrError>
       initial_result = AnalyzeTranslationUnitAndCollectTemplates(
           tu, lifetime_context, diag_reporter, debug_info,

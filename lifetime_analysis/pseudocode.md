@@ -74,6 +74,7 @@ GetLifetimes(source_code, options) -> lifetimes {
 }
 
 >> This is the lambda function `test`
+>> This is the analysis itself, run by the Clang Tooling on the code AST
 
 runAnalysisLF() {
   analysis_result = new Map<func_decls, lifetimes>()
@@ -85,7 +86,73 @@ runAnalysisLF() {
   }
 }
 
-<!-- TODO not important -->
+AnalyzeTranslationUnit(ast_context, lifetime_context) {
+  base_to_overrides = BuildBaseToOverrides(ast_context) // map from a method to its overrides in this TU
+  result = AnalyzeTranslationUnitAndCollectTemplates(
+    ast_context, lifetime_context, ..., base_to_overrides)
+  )
+  return result
+}
+
+AnalyzeTranslationUnitAndCollectTemplates() {
+  result = new DenseMap<func_decl, lifetimes>()
+  visited = new SmallVector() // do not visit the same function declaration twice
+  all_functions = GetAllFunctionDefinitions(ast_context)
+
+  for func in all_functions {
+    (...) // templates
+
+    // perform a recursive analysis for each function
+    AnalyzeFunctionRecursive(result, visited, func, lifetime_context, ...)
+  }
+
+  return result;
+}
+
+>> Searches for and walks through all CallExpr instances, calling this function again for each function call -> recursive
+>> This function analyzes the lifetimes of a given function in the context of its caller functions
+>> It is recursive so that it analyzes the leaves of the call graph first, thus, when analyzing a given function, all the functions it calls have already been analyzed
+>> This also handles walking through recursive cycles of function calls
+>> The explanation of how this is handled is given below
+
+AnalyzeFunctionRecursive(result, visited, func, lifetime_context, ...) {
+
+  if (function.notDefined() && ...) {
+    annotations = GetLifetimeAnnotations(func, lifetime_context)
+    result.get(func) = annotations
+    return
+  }
+
+  // there are multiple checks made that are ommitted
+
+  maybe_callees = GetCallees(func)
+
+  visited.emplace_back(func)
+
+  for callee in maybe_callees {
+    if analyzed(callee) return
+    AnalyzeFunctionRecursive(result, visited, callee, lifetime_context)
+  }
+
+  // skipping the virtual methods
+
+
+
+}
+
+<!-- TODO -->
+GetLifetimeAnnotations(func, lifetime_context) {
+
+}
+
+
+<!-- TODO -->
+GetAllFunctionDefinitions(ast_context) {
+
+}
+
+
+<!-- ! not important -->
 >> returns whether the analysis was successful
 
 RunAnalysisOnCode(source_code, runAnalysisLF) -> bool {
@@ -105,7 +172,21 @@ RunToolOnCodeWithArgs(frontend_action = {runAnalysisLF, lifetime_context}, sourc
 
 
 
+
 ```
+
+### Recursive function calls
+
+When a cycle is detect, the code:
+
+1. Does not analyze any of the functions until the cycle is fully explored and we've returned to the entry point to the cycle.
+2. At that point, we generate a FunctionLifetimes for each function in the
+   cycle, where the lifetimes are all completely disconnected.
+3. Then we analyze each function in the cycle based on those
+   FunctionLifetimes, connecting lifetimes within the body of each function.
+   This changes a given function's resulting FunctionLifetimes, which can
+   affect the callers to it.
+4. Thus we repeat step 3 until we see that the FunctionLifetimes have stopped changing when we analyze each function in the cycle.
 
 ## Clang Tooling
 

@@ -20,7 +20,8 @@ namespace lifetimes {
 namespace {
 
 void debug(std::string text) {
-  std::cout << ">> " << text << std::endl; // DEBUG
+  std::cout << "\033[1;33m[lifetime_analysis_test.cc] >> \033[0m" << text
+            << std::endl; // DEBUG
 }
 
 void SaveDotFile(absl::string_view dot, absl::string_view filename_base,
@@ -118,6 +119,7 @@ LifetimeAnalysisTest::GetLifetimes(llvm::StringRef source_code,
                 std::get<FunctionAnalysisError>(lifetimes_or_error).message));
         return;
       }
+
       const auto &func_lifetimes =
           std::get<FunctionLifetimes>(lifetimes_or_error);
 
@@ -136,6 +138,7 @@ LifetimeAnalysisTest::GetLifetimes(llvm::StringRef source_code,
       }
 
       tu_lifetimes.Add(QualifiedName(func), NameLifetimes(func_lifetimes));
+      std::cout << "Lifetimes:" << std::endl << tu_lifetimes << std::endl;
     };
 
     FunctionDebugInfoMap func_ptr_debug_info_map;
@@ -158,7 +161,10 @@ LifetimeAnalysisTest::GetLifetimes(llvm::StringRef source_code,
           ast_context.getTranslationUnitDecl(), lifetime_context,
           /*diag_reporter=*/{}, &func_ptr_debug_info_map);
 
+      debug("This is the number of lifetime annotations we need:");
+      int i = 0;
       for (const auto &[func, lifetimes_or_error] : analysis_result) {
+        debug(std::to_string(++i));
         result_callback(func, lifetimes_or_error);
       }
     }
