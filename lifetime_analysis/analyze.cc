@@ -1271,13 +1271,13 @@ void AnalyzeFunctionRecursive(
     // + therefore there is a cycle
     // + find all functions in the stack after func and check that all of them
     // + (including the current function) are in a cycle, otherwise error
+    // + the explanation of why this happens is below
 
     for (size_t i = func_in_visited; i < visited.size(); ++i) {
       assert(visited[i].in_cycle);
     }
   }
 
-  // TODO start from here
   // Once we return back here, there are 3 possibilities for `func`.
   //
   // 1. If `func` is part of a cycle, but was not the first entry point of the
@@ -1287,10 +1287,11 @@ void AnalyzeFunctionRecursive(
   //    will leave `func` in the `visited` call stack when we return so that
   //    once we get back to the recursive cycle's entry point, we can see all
   //    the functions that are part of the cycle graph.
-  // 2. If `func` was not part of a cycle, we can analyze it and expect it to
-  //    have valid FunctionLifetimes already generated for anything it calls.
+  // ! 2. If `func` was not part of a cycle, we can analyze it and expect it to
+  // !   have valid FunctionLifetimes already generated for anything it calls.
   // 3. Otherwise, we collect the whole cycle (which may be just the `func` if
   //    it calls itself directly), and we analyze the cycle as a whole.
+  // + this is the case where func is the first entry point of the cycle
 
   if (func_in_visited > 0 && visited[func_in_visited].in_cycle &&
       visited[func_in_visited - 1].in_cycle) {

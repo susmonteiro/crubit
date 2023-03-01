@@ -135,9 +135,19 @@ AnalyzeFunctionRecursive(result, visited, func, lifetime_context, ...) {
   }
 
   // skipping the virtual methods
+  // skipping cycles
 
+  if (!visited.getCurrent().inCycle()) {
+    analysis_result = AnalyzeSingleFunction(func, result, ...)
+    
+    func_lifetimes_result = ConstructFunctionLifetimes(func, analysis_result)
 
+    result[func] = func_lifetimes_result
+  }
 
+  // finish analyzing `func` so we can remove it from visited (along with the rest of the recursive cycle, in case it belongs to one)
+
+  visited.resize(func_in_visited)
 }
 
 <!-- TODO -->
