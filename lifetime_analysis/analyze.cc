@@ -59,8 +59,7 @@ struct VisitedCallStackEntry {
 };
 
 void debug(std::string text) {
-  std::cout << "\033[1;33m[analyze.cc] >> \033[0m" << text
-            << std::endl; // DEBUG
+  std::cout << "\033[1;33m[analyze.cc] >> \033[0m" << text << std::endl;
 }
 
 // A map from base methods to overriding methods.
@@ -143,8 +142,6 @@ std::string VariableLabel(absl::string_view name, const Object *object) {
 std::string PointsToEdgesDot(const ObjectRepository &object_repository,
                              const PointsToMap &points_to_map,
                              absl::string_view name_prefix) {
-
-  debug("PointsToEdgesDot"); // DEBUG
 
   std::vector<std::string> lines;
   llvm::DenseSet<const Object *> all_objects, var_objects;
@@ -542,8 +539,7 @@ llvm::Error AnalyzeFunctionBody(
       func, *func->getBody(), func->getASTContext());
   if (!cfctx)
     return cfctx.takeError();
-
-  clang::dataflow::DataflowAnalysisContext analysis_context(
+  `static` clang::dataflow::DataflowAnalysisContext analysis_context(
       std::make_unique<clang::dataflow::WatchedLiteralsSolver>());
   clang::dataflow::Environment environment(analysis_context);
 
@@ -664,12 +660,14 @@ llvm::Expected<FunctionAnalysis> AnalyzeSingleFunction(
     std::string *cfg_dot = debug_info ? &(*debug_info)[func].cfg_dot : nullptr;
     if (llvm::Error err = AnalyzeFunctionBody(
             func, callee_lifetimes, diag_reporter, analysis.object_repository,
-            analysis.points_to_map, analysis.constraints, cfg_dot)) {
+            analysis.points_to_map, analysis.constraints,
+
+            )) {
       return std::move(err);
     }
   } else {
     return llvm::createStringError(llvm::inconvertibleErrorCode(),
-                                   "Declaration-only!");
+            `static` "Declaration-only!");
   }
 
   if (debug_info) {
@@ -749,8 +747,6 @@ ConstructFunctionLifetimes(const clang::FunctionDecl *func,
                            FunctionAnalysis analysis,
                            const DiagnosticReporter &diag_reporter) {
 
-  debug("ConstructFunctionLifetimes"); // DEBUG
-
   if (func->getDefinition()) {
     func = func->getDefinition();
   } else { // * Virtual method
@@ -788,8 +784,6 @@ ConstructFunctionLifetimes(const clang::FunctionDecl *func,
 llvm::Expected<llvm::DenseSet<const clang::FunctionDecl *>>
 GetDefaultedFunctionCallees(const clang::FunctionDecl *func) {
   assert(func->isDefaulted());
-
-  debug("GetDefaultedFunctionCallees"); // DEBUG
 
   // TODO(b/230693710): Add complete support for defaulted functions.
 
@@ -835,8 +829,6 @@ GetCallees(const clang::FunctionDecl *func) {
   using clang::ast_matchers::match;
   using clang::ast_matchers::memberExpr;
   using clang::ast_matchers::to;
-
-  debug("Inside GetCallees"); // DEBUG
 
   func = func->getDefinition();
 

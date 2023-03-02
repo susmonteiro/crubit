@@ -21,7 +21,7 @@ namespace {
 
 void debug(std::string text) {
   std::cout << "\033[1;33m[lifetime_analysis_test.cc] >> \033[0m" << text
-            << std::endl; // DEBUG
+            << std::endl;
 }
 
 void SaveDotFile(absl::string_view dot, absl::string_view filename_base,
@@ -89,8 +89,6 @@ NamedFuncLifetimes
 LifetimeAnalysisTest::GetLifetimes(llvm::StringRef source_code,
                                    const GetLifetimesOptions &options) {
   NamedFuncLifetimes tu_lifetimes;
-
-  debug("GetLifetimes"); // DEBUG
 
   auto test = [&tu_lifetimes, &options,
                this](clang::ASTContext &ast_context,
@@ -190,9 +188,6 @@ LifetimeAnalysisTest::GetLifetimes(llvm::StringRef source_code,
       tu_lifetimes.Add("", "Error running dataflow analysis");
     }
   }
-
-  std::cout << "Result lifetimes: " << std::endl
-            << tu_lifetimes << std::endl; // DEBUG
 
   return tu_lifetimes;
 }
