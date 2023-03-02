@@ -258,8 +258,6 @@ std::string ConstraintsDot(const ObjectRepository &object_repository,
 std::string CfgBlockLabel(const clang::CFGBlock *block, const clang::CFG &cfg,
                           const clang::ASTContext &ast_context) {
 
-  debug("CfgBlockLabel");
-
   std::string block_name = absl::StrCat("B", block->getBlockID());
   if (block == &cfg.getEntry()) {
     absl::StrAppend(&block_name, " (ENTRY)");
@@ -556,6 +554,8 @@ llvm::Error AnalyzeFunctionBody(
   }
   auto &block_to_output_state = *maybe_block_to_output_state;
 
+  debug("After running dataflow analysis");
+
   const auto exit_block_state =
       block_to_output_state.at(cfctx->getCFG().getExit().getBlockID());
   if (!exit_block_state.has_value()) {
@@ -571,6 +571,9 @@ llvm::Error AnalyzeFunctionBody(
     return llvm::createStringError(llvm::inconvertibleErrorCode(),
                                    exit_lattice.Error());
   }
+
+  std::cout << "Exit block state: " << std::endl
+            << exit_lattice.ToString() << std::endl; // DEBUG
 
   points_to_map = exit_lattice.PointsTo();
   constraints = exit_lattice.Constraints();
@@ -896,7 +899,6 @@ bool FindAndMarkCycleWithFunc(
   // where `func` was seen in `visited` as being part of a cycle. Then a cycle
   // graph is a contiguous set of functions in the `visited` call stack that are
   // marked as being in a cycle.
-  debug("FindAndMarkCycleWithFunc");
   bool found_cycle = false;
   for (size_t i = visited_call_stack.size(); i > 0; --i) {
     const auto &stack_entry = visited_call_stack[i - 1];
@@ -1362,9 +1364,7 @@ AnalyzeTranslationUnitAndCollectTemplates(
   llvm::DenseMap<const clang::FunctionDecl *, FunctionLifetimesOrError> result;
   llvm::SmallVector<VisitedCallStackEntry> visited;
 
-  debug("All function definitions");
   for (const clang::FunctionDecl *func : GetAllFunctionDefinitions(tu)) {
-    std::cout << func << std::endl;
 
     // * uninstantiated_templates -> keep track of templates that have not yet
     // * been instantiated. Below, if one specialization is found, remove it

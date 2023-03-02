@@ -121,3 +121,7 @@ ExtendStaticConstraint(points_to_map, constraints) {
 - skipped virtual methods
 - skipped constructors
 - skipped cycles
+
+It uses dataflow analysis to find out the `points_to_map` and the `lifetime_constraints`
+
+Then uses the map and the constraints to create the _lifetime annotations_
