@@ -539,7 +539,8 @@ llvm::Error AnalyzeFunctionBody(
       func, *func->getBody(), func->getASTContext());
   if (!cfctx)
     return cfctx.takeError();
-  `static` clang::dataflow::DataflowAnalysisContext analysis_context(
+
+  clang::dataflow::DataflowAnalysisContext analysis_context(
       std::make_unique<clang::dataflow::WatchedLiteralsSolver>());
   clang::dataflow::Environment environment(analysis_context);
 
@@ -660,14 +661,12 @@ llvm::Expected<FunctionAnalysis> AnalyzeSingleFunction(
     std::string *cfg_dot = debug_info ? &(*debug_info)[func].cfg_dot : nullptr;
     if (llvm::Error err = AnalyzeFunctionBody(
             func, callee_lifetimes, diag_reporter, analysis.object_repository,
-            analysis.points_to_map, analysis.constraints,
-
-            )) {
+            analysis.points_to_map, analysis.constraints, cfg_dot)) {
       return std::move(err);
     }
   } else {
     return llvm::createStringError(llvm::inconvertibleErrorCode(),
-            `static` "Declaration-only!");
+                                   "Declaration-only!");
   }
 
   if (debug_info) {
