@@ -139,7 +139,7 @@ AnalyzeFunctionRecursive(result, visited, func, lifetime_context, ...) {
 
   if (!visited.getCurrent().inCycle()) {
     analysis_result = AnalyzeSingleFunction(func, result, ...)
-    
+
     func_lifetimes_result = ConstructFunctionLifetimes(func, analysis_result)
 
     result[func] = func_lifetimes_result
@@ -148,6 +148,82 @@ AnalyzeFunctionRecursive(result, visited, func, lifetime_context, ...) {
   // finish analyzing `func` so we can remove it from visited (along with the rest of the recursive cycle, in case it belongs to one)
 
   visited.resize(func_in_visited)
+}
+
+AnalyzeSingleFunction(func, analyzed, ...) {
+  analysis = new FunctionAnalysis()
+  // the analysis includes:
+  // - object_repository
+  // - points-to-map
+  // - lifetime constraints
+  // - lifetime substitutions
+
+  // skip virtual methods and constructors
+
+  if (func.hasBody()) {
+    AnalyzeFunctionBody(func, analyzed, analysis)
+  }
+
+  PropagateStaticToPointees(analysis)
+  return analysis
+}
+
+AnalyzeFunctionBody(func, analyzed, function_analysis) {
+  // build cfg for `func`
+  control_flow_context = new ControlFlowContext(func, getBody(func), getASTContext(func))
+
+  // create dataflow analysis context
+  analysis_context = new DataflowAnalysisContext()
+
+  // create environment
+  environment = new Environment(analysis_context)
+
+  lifetime_lattice_vector = RunDataflowAnalysis(control_flow_context, analysis, environment)
+
+  // represents the state of the program after the dataflow analysis is finished
+  exit_block = getExitBlock(lifetime_lattice_vector)
+
+  exit_lattice = getLattice(exit_block)
+  points_to_map = getPointsTo(exit_lattice)
+  constraints = getConstraints(exit_lattice)
+
+  // skip constructors
+
+  // extend the constraints set with additional constraints of the form "a >= static"
+  // this constraints means that the lifetime `a` must be at least as long as the `static lifetime`
+  // the static lifetime is the longest, can be considered the root of the lifetime hierarchy
+  // to do so we need to find all objects that are reachable from a `static` object
+  // ? what is the meaning of "transitively"
+  // ? also, there are "outlive" lifetimes afterall?
+
+  // 1. collect all points that have lifetime `static`
+  stack = getAllPointersWithLifetime(points_to_map, Lifetime::Static())
+  visited = new Set()
+  while (stack.size > 0) {
+    object = removeBack(Stack)
+    if (containsObject(visited, object)) continue
+    insert(visited, object)
+    // insert {shorter, longer} in the constraints set
+    AddOutlivesConstraint(constraints, Lifetime::Static(), getLifetime(object))
+    for pointee in GetPointerPointsToSet(object) {
+      insertBack(pointee, stack) // insert and remove from the back
+    }
+
+  }
+
+
+
+}
+
+<!-- TODO -->
+
+RunDataflowAnalysis() {
+
+}
+
+<!-- TODO -->
+PropagateStaticToPointees() {
+
 }
 
 <!-- TODO -->

@@ -591,6 +591,7 @@ llvm::Error AnalyzeFunctionBody(
         constructor, object_repository, points_to_map, constraints);
   }
 
+  // ?
   // Extend the constraint set with constraints of the form "'a >= 'static" for
   // every object that is (transitively) reachable from a 'static object.
   std::vector<const Object *> stack =
@@ -622,6 +623,10 @@ llvm::Expected<FunctionAnalysis> AnalyzeSingleFunction(
     const llvm::DenseMap<const clang::FunctionDecl *, FunctionLifetimesOrError>
         &callee_lifetimes,
     const DiagnosticReporter &diag_reporter, FunctionDebugInfoMap *debug_info) {
+  // * Object repository is used to keep track of the memory objects and their
+  // * attributes during the analysis of a function
+  // + Used throughout this function to store and query information about the
+  // + objects in the function
   FunctionAnalysis analysis{.object_repository = ObjectRepository(func)};
 
   const auto *cxxmethod = clang::dyn_cast<clang::CXXMethodDecl>(func);
