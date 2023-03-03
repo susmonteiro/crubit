@@ -7,6 +7,7 @@
 #include <llvm/ADT/DenseSet.h>
 
 #include <algorithm>
+#include <iostream>
 
 #include "lifetime_annotations/lifetime.h"
 #include "lifetime_annotations/lifetime_substitutions.h"
@@ -16,8 +17,8 @@ namespace clang {
 namespace tidy {
 namespace lifetimes {
 
-clang::dataflow::LatticeJoinEffect LifetimeConstraints::join(
-    const LifetimeConstraints& other) {
+clang::dataflow::LatticeJoinEffect
+LifetimeConstraints::join(const LifetimeConstraints &other) {
   bool changed = false;
   for (auto p : other.outlives_constraints_) {
     changed |= outlives_constraints_.insert(p).second;
@@ -31,10 +32,11 @@ namespace {
 // Simple Disjoint-Set-Union with path compression (but no union-by-rank). This
 // guarantees O(log n) time per operation.
 class LifetimeDSU {
- public:
+public:
   void MakeSet(Lifetime l) { parent_[l] = l; }
   Lifetime Find(Lifetime l) {
-    if (l == parent_[l]) return l;
+    if (l == parent_[l])
+      return l;
     return parent_[l] = Find(parent_[l]);
   }
   void Union(Lifetime a, Lifetime b) {
@@ -45,14 +47,14 @@ class LifetimeDSU {
     }
   }
 
- private:
+private:
   llvm::DenseMap<Lifetime, Lifetime> parent_;
 };
 
-}  // namespace
+} // namespace
 
-llvm::DenseSet<Lifetime> LifetimeConstraints::GetOutlivingLifetimes(
-    const Lifetime l) const {
+llvm::DenseSet<Lifetime>
+LifetimeConstraints::GetOutlivingLifetimes(const Lifetime l) const {
   // TODO(veluca): here we could certainly reduce complexity, for example by
   // constructing the constraint graph instead of iterating over all constraints
   // each time.
@@ -61,7 +63,8 @@ llvm::DenseSet<Lifetime> LifetimeConstraints::GetOutlivingLifetimes(
   while (!stack.empty()) {
     Lifetime v = stack.back();
     stack.pop_back();
-    if (visited.contains(v)) continue;
+    if (visited.contains(v))
+      continue;
     visited.insert(v);
     for (auto [shorter, longer] : outlives_constraints_) {
       if (shorter == v) {
@@ -74,12 +77,16 @@ llvm::DenseSet<Lifetime> LifetimeConstraints::GetOutlivingLifetimes(
 }
 
 llvm::Error LifetimeConstraints::ApplyToFunctionLifetimes(
-    FunctionLifetimes& function_lifetimes) {
+    FunctionLifetimes &function_lifetimes) {
   // We want to make output-only lifetimes as long as possible; thus, we collect
   // those separately.
+  std::cout << "Output lifetimes:" << std::endl;
+
   llvm::DenseSet<Lifetime> output_lifetimes;
   function_lifetimes.GetReturnLifetimes().Traverse(
       [&output_lifetimes](Lifetime l, Variance) {
+        std::cout << l << std::endl;
+
         output_lifetimes.insert(l);
       });
 
@@ -132,8 +139,10 @@ llvm::Error LifetimeConstraints::ApplyToFunctionLifetimes(
     // Now all the longer lifetimes must be variable lifetimes. As we do not
     // support inequalities, we simply state that they must be equivalent.
     for (Lifetime longer : longer_lifetimes) {
-      if (already_have_substitutions.contains(longer)) continue;
-      if (!all_interesting_lifetimes.contains(longer)) continue;
+      if (already_have_substitutions.contains(longer))
+        continue;
+      if (!all_interesting_lifetimes.contains(longer))
+        continue;
       dsu.Union(longer, lifetime);
     }
   }
@@ -187,7 +196,7 @@ LifetimeRequirement Compose(LifetimeRequirement a, LifetimeRequirement b) {
 }
 
 void AddConstraint(LifetimeRequirement req, Lifetime obj, Lifetime replacement,
-                   LifetimeConstraints& constraints) {
+                   LifetimeConstraints &constraints) {
   if (req & LifetimeRequirement::kReplacementIsLe) {
     constraints.AddOutlivesConstraint(replacement, obj);
   }
@@ -196,17 +205,17 @@ void AddConstraint(LifetimeRequirement req, Lifetime obj, Lifetime replacement,
   }
 }
 
-void CollectLifetimeConstraints(const ValueLifetimes&, const ValueLifetimes&,
-                                LifetimeRequirement, LifetimeConstraints&);
+void CollectLifetimeConstraints(const ValueLifetimes &, const ValueLifetimes &,
+                                LifetimeRequirement, LifetimeConstraints &);
 
 // Collects all the constraints that are required to use `replacement` as a
 // replacement for `obj`, taking into account the requirements due to their
 // positions (i.e. covariant/contravariant/invariant).
-void CollectLifetimeConstraints(const ObjectLifetimes& obj,
-                                const ObjectLifetimes& replacement,
+void CollectLifetimeConstraints(const ObjectLifetimes &obj,
+                                const ObjectLifetimes &replacement,
                                 LifetimeRequirement object_requirement,
                                 LifetimeRequirement descendants_requirement,
-                                LifetimeConstraints& constraints) {
+                                LifetimeConstraints &constraints) {
   AddConstraint(object_requirement, obj.GetLifetime(),
                 replacement.GetLifetime(), constraints);
   CollectLifetimeConstraints(obj.GetValueLifetimes(),
@@ -214,10 +223,10 @@ void CollectLifetimeConstraints(const ObjectLifetimes& obj,
                              descendants_requirement, constraints);
 }
 
-void CollectLifetimeConstraints(const ValueLifetimes& obj,
-                                const ValueLifetimes& replacement,
+void CollectLifetimeConstraints(const ValueLifetimes &obj,
+                                const ValueLifetimes &replacement,
                                 LifetimeRequirement requirement,
-                                LifetimeConstraints& constraints) {
+                                LifetimeConstraints &constraints) {
   assert(obj.Type().getCanonicalType() ==
          replacement.Type().getCanonicalType());
   if (!PointeeType(obj.Type()).isNull()) {
@@ -249,7 +258,7 @@ void CollectLifetimeConstraints(const ValueLifetimes& obj,
         }
       }
     }
-    for (const auto& lftm_param : GetLifetimeParameters(obj.Type())) {
+    for (const auto &lftm_param : GetLifetimeParameters(obj.Type())) {
       // TODO(veluca): should lifetime parameters be invariant like template
       // parameters?
       AddConstraint(requirement, obj.GetLifetimeParameter(lftm_param),
@@ -259,9 +268,9 @@ void CollectLifetimeConstraints(const ValueLifetimes& obj,
   // TODO(veluca): function types.
 }
 
-void CollectLifetimeConstraints(const FunctionLifetimes& callable,
-                                const FunctionLifetimes& replacement_callable,
-                                LifetimeConstraints& constraints) {
+void CollectLifetimeConstraints(const FunctionLifetimes &callable,
+                                const FunctionLifetimes &replacement_callable,
+                                LifetimeConstraints &constraints) {
   for (size_t i = 0; i < callable.GetNumParams(); i++) {
     CollectLifetimeConstraints(callable.GetParamLifetimes(i),
                                replacement_callable.GetParamLifetimes(i),
@@ -278,11 +287,11 @@ void CollectLifetimeConstraints(const FunctionLifetimes& callable,
   }
 }
 
-}  // namespace
+} // namespace
 
 LifetimeConstraints LifetimeConstraints::ForCallableSubstitution(
-    const FunctionLifetimes& callable,
-    const FunctionLifetimes& replacement_callable) {
+    const FunctionLifetimes &callable,
+    const FunctionLifetimes &replacement_callable) {
   LifetimeConstraints constraints =
       LifetimeConstraints::ForCallableSubstitutionFull(callable,
                                                        replacement_callable);
@@ -304,13 +313,13 @@ LifetimeConstraints LifetimeConstraints::ForCallableSubstitution(
 }
 
 LifetimeConstraints LifetimeConstraints::ForCallableSubstitutionFull(
-    const FunctionLifetimes& callable,
-    const FunctionLifetimes& replacement_callable) {
+    const FunctionLifetimes &callable,
+    const FunctionLifetimes &replacement_callable) {
   LifetimeConstraints constraints;
   CollectLifetimeConstraints(callable, replacement_callable, constraints);
   return constraints;
 }
 
-}  // namespace lifetimes
-}  // namespace tidy
-}  // namespace clang
+} // namespace lifetimes
+} // namespace tidy
+} // namespace clang

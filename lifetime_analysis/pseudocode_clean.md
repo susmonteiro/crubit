@@ -115,6 +115,16 @@ ExtendStaticConstraint(points_to_map, constraints) {
 }
 ```
 
+Construct the lifetime annotations 
+
+```
+ConstructFunctionLifetimes(func, analysis_result) -> lifetime_result {
+    result = GetOriginalFunctionLifetimes(object_repository)
+    result = ApplyToFunctionLifetimes(constraints)
+    return result
+}
+```
+
 ### Notes
 
 - skipped templates
