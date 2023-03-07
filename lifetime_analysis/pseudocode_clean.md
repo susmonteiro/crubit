@@ -5,11 +5,87 @@ The actual analysis is performed in the function `runTypeErasedDataflowAnalysis`
 ```
 RunDataflowAnalysis(CFG, Analysis, InitEnv) -> BlockStates {
     POV = PostOrderCFGView(CFG)
+
+    // the enqueued blocks will be dequeued in reverse post order
+    // the worklist never contains the same block multiple times at once
     Worklist = ForwardWorklist(CFG, POV)    // for forward dataflow analysis
     BlockStates = {} // size = CFG.size
 
+    while not_empty(worklist) {
+        block = Worklist.popFromTop()
+        old_block_state = BlockStates[block]
+        new_block_state = transferCFGBlock(block, Analysis)
 
+        if (old_block_state == new_block_state) continue    // no need to visit sucessors
+
+        BlockStates[block] = new_block_state
+
+        Worklist.addSuccessors(block)
+    }
+
+    return BlockStates
 }
+
+TransferCFGBlock(block, Analysis) {
+    State = ComputeBlockInputState(Block, Analysis)
+
+    for Element in Block {
+        // skips BuiltinTransfer --> `lifetime_analysis.h`
+        State = SpecificTransfer(Element, Analysis, State)
+        // skips PostVisitCFG --> `analyze.cc` (the function is not passed as arguments, so it is null by default)
+    }
+    return State
+}
+
+```
+
+Previous two function together:
+
+```
+RunDataflowAnalysis(CFG, Analysis, InitEnv) -> BlockStates {
+    Worklist = ForwardWorklist(CFG)    // for forward dataflow analysis
+    BlockStates = {} // size = CFG.size
+
+    while not_empty(worklist) {
+        block = Worklist.popFromTop()
+
+        State = ComputeBlockInputState(Block, Analysis)
+        for Element in Block {
+            State = LifetimeAnalysisTransfer(Element, Analysis, State)
+        }
+
+        if (BlockStates[block] == State) continue    // no need to visit sucessors
+        BlockStates[block] = State
+        Worklist.addSuccessors(block)
+    }
+
+    return BlockStates
+}
+```
+
+The function `transferCFGBlock` (in the function `runTypeErasedDataFlowAnalysis`) calls a DataflowAnalysis function (`TransferTypeErased`) which then calls the specific analysis `transfer` function.
+This is not shown in the pseudo code.
+
+State holds two things: **environment** and **lattice**
+
+- **Environment**: holds the state of the program (store and heap) at a given program point
+- **Lattice**: holds the points_to_map and the constraints
+
+Lifetime Analysis class. Files: `lifetime_analysis.h` and `lifetime_analysis.cc`
+
+```
+
+// new pointees must always outlive the old pointees
+GenerateConstraintsForAssignmentNonRecursive(old_pointees, new_pointees, constraints) {
+    for old in old_pointees {
+        for new in new_pointees {
+            constraints.addOutlivesConstraint(GetLifetime(old), GetLifetime(new))
+        }
+    }
+}
+
+
+
 ```
 
 ---
@@ -153,7 +229,7 @@ ApplyToFunctionLifetimes(constraints) {
         substitutions.add(outlives_static, Lifetime::Static())
     }
 
-    
+
 
 }
 ```

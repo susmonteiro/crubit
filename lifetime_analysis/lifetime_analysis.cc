@@ -318,6 +318,10 @@ void TransferInitializer(const Object *dest, clang::QualType type,
 }
 
 LifetimeLattice LifetimeAnalysis::initialElement() {
+  // * empty points_to_map
+  // * empty single_valued_objects
+  // + single valued objects hold just one value at a time
+  // + such as int, char, float or double
   return LifetimeLattice(object_repository_.InitialPointsToMap(),
                          object_repository_.InitialSingleValuedObjects());
 }
@@ -345,6 +349,9 @@ void LifetimeAnalysis::transfer(
   TransferStmtVisitor visitor(object_repository_, state.PointsTo(),
                               state.Constraints(), state.SingleValuedObjects(),
                               func_, callee_lifetimes_, diag_reporter_);
+
+  // * visitor pattern -> visit the specific function and handle different
+  // * elements in each specific way
   if (std::optional<std::string> err =
           visitor.Visit(const_cast<clang::Stmt *>(stmt))) {
     state = LifetimeLattice(*err);
@@ -352,6 +359,9 @@ void LifetimeAnalysis::transfer(
 }
 
 namespace {
+
+// * Below is the implementation of all visit functions defined in the
+// * LifetimeAnalysis class
 
 std::optional<std::string>
 TransferStmtVisitor::VisitExpr(const clang::Expr *expr) {

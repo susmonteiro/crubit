@@ -95,7 +95,9 @@ class PointsToMap {
       Lifetime lifetime) const;
 
  private:
+  // * objects to which each object points to
   llvm::DenseMap<const Object*, ObjectSet> pointer_points_tos_;
+  // * objects present in each expression
   llvm::DenseMap<const clang::Expr*, ObjectSet> expr_objects_;
 };
 
