@@ -1,3 +1,19 @@
+# Dataflow Analysis
+
+The actual analysis is performed in the function `runTypeErasedDataflowAnalysis`
+
+```
+RunDataflowAnalysis(CFG, Analysis, InitEnv) -> BlockStates {
+    POV = PostOrderCFGView(CFG)
+    Worklist = ForwardWorklist(CFG, POV)    // for forward dataflow analysis
+    BlockStates = {} // size = CFG.size
+
+
+}
+```
+
+---
+
 `Clang::Tooling` applies a "frontend action", in this case the _lifetime analysis_ to the code's AST
 
 ```
@@ -115,13 +131,30 @@ ExtendStaticConstraint(points_to_map, constraints) {
 }
 ```
 
-Construct the lifetime annotations 
+Construct the lifetime annotations
 
 ```
 ConstructFunctionLifetimes(func, analysis_result) -> lifetime_result {
     result = GetOriginalFunctionLifetimes(object_repository)
     result = ApplyToFunctionLifetimes(constraints)
     return result
+}
+
+ApplyToFunctionLifetimes(constraints) {
+    output_lifetimes = GetOutputLifetimes()
+    function_call_lifetimes = GetFunctionCallLifetimes()
+
+    substitutions = LifetimeSubstitutions()
+    already_have_substitutions = DenseSet<>()
+
+    // 1. substitute everything that outlives "static" with `static`
+    for outlives_static in GetOutlivingLifetimes(Lifetime::Static()) {
+        already_have_substitutions.insert(outlives_static)
+        substitutions.add(outlives_static, Lifetime::Static())
+    }
+
+    
+
 }
 ```
 

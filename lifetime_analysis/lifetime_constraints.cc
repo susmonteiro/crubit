@@ -90,11 +90,15 @@ llvm::Error LifetimeConstraints::ApplyToFunctionLifetimes(
         output_lifetimes.insert(l);
       });
 
+  std::cout << "Function call lifetimes:" << std::endl;
+
   // Collect all "interesting" lifetimes, i.e. all lifetimes that appear in the
   // function call.
   llvm::DenseSet<Lifetime> all_interesting_lifetimes;
   function_lifetimes.Traverse(
       [&all_interesting_lifetimes](Lifetime l, Variance) {
+        std::cout << l << std::endl;
+
         all_interesting_lifetimes.insert(l);
       });
 

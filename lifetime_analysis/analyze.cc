@@ -771,9 +771,10 @@ ConstructFunctionLifetimes(const clang::FunctionDecl *func,
 
   FunctionLifetimes result;
 
+  debug("ConstructFunctionLifetimes");
+
   // * format -> numbers
   result = object_repository.GetOriginalFunctionLifetimes();
-  debug("GetOriginalFunctionLifetimes");
   std::cout << result.DebugString() << std::endl;
   if (llvm::Error err = constraints.ApplyToFunctionLifetimes(result)) {
     return std::move(err);
