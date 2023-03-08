@@ -15,11 +15,12 @@ namespace {
 
 TEST_F(LifetimeAnalysisTest, ReturnArgumentPtr) {
   EXPECT_THAT(GetLifetimes(R"(
-    int* target(int* a) {
+    int* target(int* a, int* b) {
+      *a = *a + *b;
       return a;
     }
   )"),
-              LifetimesAre({{"target", "a -> a"}}));
+              LifetimesAre({{"target", "a, b -> a"}}));
 }
 
 } // namespace

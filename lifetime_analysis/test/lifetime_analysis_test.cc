@@ -19,10 +19,11 @@ namespace tidy {
 namespace lifetimes {
 namespace {
 
-void debug(std::string text) {
-  std::cout << "\033[1;33m[lifetime_analysis_test.cc] >> \033[0m" << text
-            << std::endl;
-}
+// debug
+// void debug(std::string text) {
+//   std::cout << "\033[1;33m[lifetime_analysis_test.cc] >> \033[0m" << text
+//             << std::endl;
+// }
 
 void SaveDotFile(absl::string_view dot, absl::string_view filename_base,
                  absl::string_view test_name, absl::string_view description) {
@@ -159,10 +160,10 @@ LifetimeAnalysisTest::GetLifetimes(llvm::StringRef source_code,
           ast_context.getTranslationUnitDecl(), lifetime_context,
           /*diag_reporter=*/{}, &func_ptr_debug_info_map);
 
-      debug("This is the number of lifetime annotations we need:");
-      int i = 0;
+      // debug("This is the number of lifetime annotations we need:");
+      // int i = 0; // debug
       for (const auto &[func, lifetimes_or_error] : analysis_result) {
-        debug(std::to_string(++i));
+        // debug(std::to_string(++i));
         result_callback(func, lifetimes_or_error);
       }
     }

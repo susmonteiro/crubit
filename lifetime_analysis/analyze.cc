@@ -58,9 +58,10 @@ struct VisitedCallStackEntry {
   bool in_overrides_traversal;
 };
 
-void debug(std::string text) {
-  std::cout << "\033[1;33m[analyze.cc] >> \033[0m" << text << std::endl;
-}
+// debug
+// void debug(std::string text) {
+//   std::cout << "\033[1;33m[analyze.cc] >> \033[0m" << text << std::endl;
+// }
 
 // A map from base methods to overriding methods.
 using BaseToOverrides =
@@ -554,7 +555,7 @@ llvm::Error AnalyzeFunctionBody(
   }
   auto &block_to_output_state = *maybe_block_to_output_state;
 
-  debug("After running dataflow analysis");
+  // debug("After running dataflow analysis");
 
   const auto exit_block_state =
       block_to_output_state.at(cfctx->getCFG().getExit().getBlockID());
@@ -771,7 +772,7 @@ ConstructFunctionLifetimes(const clang::FunctionDecl *func,
 
   FunctionLifetimes result;
 
-  debug("ConstructFunctionLifetimes");
+  // debug("ConstructFunctionLifetimes");
 
   // * format -> numbers
   result = object_repository.GetOriginalFunctionLifetimes();

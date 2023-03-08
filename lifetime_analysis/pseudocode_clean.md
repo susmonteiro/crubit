@@ -84,9 +84,38 @@ GenerateConstraintsForAssignmentNonRecursive(old_pointees, new_pointees, constra
     }
 }
 
+GenerateConstraintsForAssignmentRecursive(pointers, new_pointees, pointer_type, object_repository, points_to_map, constraints, seen_pairs) {
+
+    // all pairs were already seen -> check for cycles
+    if (size(seen_pairs) == combinations(pointers, new_pointees)) return
+
+    old_pointees = points_to_map.GetPointerPointsToSet(pointers)
+    GenerateConstraintsForAssignmentNonRecursive(old_pointees, new_pointees, constraints)
+
+    // skip recursive part -> needed for structs, whose fields may be pointees
+}
+
+GenerateConstraintsForAssignment(pointers, new_pointees, pointer_type, object_repository, points_to_map, constraints) {
+    seen_pairs = DenseSet<Pair>
+
+    GenerateConstraintsForAssignmentRecursive(pointers, new_pointees, pointer_type, object_repository, points_to_map, constraints, seen_pairs)
+}
+
 
 
 ```
+
+This is the transfer function for each kind of statement:
+
+- `VisitExpr`: do nothing
+- `VisitReturnStmt`: only need to handle pointers and references
+    ```
+    if (isPointerType(return) or (isReferenceType(return))) {
+        expr_points_to = points_to_map.GetExprObjectSet(return)
+        GenerateConstraintsForAssignment()
+    }
+    ```
+
 
 ---
 

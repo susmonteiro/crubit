@@ -39,6 +39,14 @@
 #include "llvm/Support/Error.h"
 #include "llvm/Support/ErrorHandling.h"
 
+void debug(std::string text) {
+  std::cout << "\033[1;34m>> \033[0m" << text << std::endl;
+}
+
+void debugVisitor(std::string text) {
+  std::cout << "\033[1;35m[visitor] >> \033[0m" << text << std::endl;
+}
+
 namespace clang {
 namespace tidy {
 namespace lifetimes {
@@ -154,6 +162,13 @@ void GenerateConstraintsForAssignmentRecursive(
 
   ObjectSet old_pointees = points_to_map.GetPointerPointsToSet(pointers);
 
+  debug("Old pointees:");
+  debug(old_pointees.DebugString());
+  debug("Pointers:");
+  debug(pointers.DebugString());
+  debug("New pointees:");
+  debug(new_pointees.DebugString());
+
   GenerateConstraintsForAssignmentNonRecursive(
       old_pointees, new_pointees, is_in_invariant_context, constraints);
 
@@ -183,6 +198,7 @@ void GenerateConstraintsForAssignmentRecursive(
       continue;
     }
 
+    // * record type: struct, class or union type
     if (const auto *record_type = call.type->getAs<clang::RecordType>()) {
       for (auto field : record_type->getDecl()->fields()) {
         calls_to_make.push_back(
@@ -369,6 +385,7 @@ TransferStmtVisitor::VisitExpr(const clang::Expr *expr) {
   // This is triggered by TypoExpr and RecoveryExpr, but rather than handling
   // these particular expression types individually, we just check
   // Expr::containsErrors().
+  debugVisitor("VisitExpr");
   if (expr->containsErrors()) {
     return "encountered an expression containing errors";
   }
@@ -377,6 +394,8 @@ TransferStmtVisitor::VisitExpr(const clang::Expr *expr) {
 
 std::optional<std::string>
 TransferStmtVisitor::VisitDeclRefExpr(const clang::DeclRefExpr *decl_ref) {
+  debugVisitor("VisitDeclRefExpr");
+
   auto *decl = decl_ref->getDecl();
   if (!clang::isa<clang::VarDecl>(decl) &&
       !clang::isa<clang::FunctionDecl>(decl)) {
@@ -401,6 +420,8 @@ TransferStmtVisitor::VisitDeclRefExpr(const clang::DeclRefExpr *decl_ref) {
 
 std::optional<std::string>
 TransferStmtVisitor::VisitStringLiteral(const clang::StringLiteral *strlit) {
+  debugVisitor("VisitStringLiteral");
+
   const Object *obj = object_repository_.CreateStaticObject(strlit->getType());
   points_to_map_.SetExprObjectSet(strlit, {obj});
   return std::nullopt;
@@ -485,6 +506,8 @@ TransferStmtVisitor::VisitCastExpr(const clang::CastExpr *cast) {
 std::optional<std::string>
 TransferStmtVisitor::VisitReturnStmt(const clang::ReturnStmt *return_stmt) {
   clang::QualType return_type = func_->getReturnType();
+  debugVisitor("VisitReturnStmt");
+
   // We only need to handle pointers and references.
   // For record types, initialization of the return value has already been
   // handled in VisitCXXConstructExpr() or VisitInitListExpr(), so nothing
@@ -510,15 +533,21 @@ TransferStmtVisitor::VisitReturnStmt(const clang::ReturnStmt *return_stmt) {
     ret_expr = cleanups->getSubExpr();
   }
 
+  // * objects that return stmt points to
   ObjectSet expr_points_to = points_to_map_.GetExprObjectSet(ret_expr);
+  debug(expr_points_to.DebugString());
   GenerateConstraintsForAssignment(
       {object_repository_.GetReturnObject()}, expr_points_to, return_type,
       object_repository_, points_to_map_, constraints_);
+
+  debugVisitor("End VisitReturnStmt");
+
   return std::nullopt;
 }
 
 std::optional<std::string>
 TransferStmtVisitor::VisitDeclStmt(const clang::DeclStmt *decl_stmt) {
+  debugVisitor("VisitDeclStmt");
   for (const clang::Decl *decl : decl_stmt->decls()) {
     if (const auto *var_decl = clang::dyn_cast<clang::VarDecl>(decl)) {
       const Object *var_object = object_repository_.GetDeclObject(var_decl);
@@ -538,8 +567,11 @@ TransferStmtVisitor::VisitDeclStmt(const clang::DeclStmt *decl_stmt) {
 
 std::optional<std::string>
 TransferStmtVisitor::VisitUnaryOperator(const clang::UnaryOperator *op) {
+  debugVisitor("VisitUnaryOperator");
+
   if (!op->isGLValue() && !op->getType()->isPointerType() &&
       !op->getType()->isArrayType()) {
+    debug("Skipped...");
     return std::nullopt;
   }
 
@@ -556,12 +588,14 @@ TransferStmtVisitor::VisitUnaryOperator(const clang::UnaryOperator *op) {
 
   switch (op->getOpcode()) {
   case clang::UO_AddrOf:
+    // TODO take a look at this
     assert(!op->isGLValue());
     assert(op->getSubExpr()->isGLValue());
     points_to_map_.SetExprObjectSet(op, sub_points_to);
     break;
 
   case clang::UO_Deref:
+    // TODO take a look at this
     assert(op->isGLValue());
     assert(!op->getSubExpr()->isGLValue());
     points_to_map_.SetExprObjectSet(op, sub_points_to);
@@ -608,6 +642,8 @@ std::optional<std::string> TransferStmtVisitor::VisitArraySubscriptExpr(
 
 std::optional<std::string>
 TransferStmtVisitor::VisitBinaryOperator(const clang::BinaryOperator *op) {
+  debugVisitor("VisitBinaryOperator");
+
   switch (op->getOpcode()) {
   case clang::BO_Assign: {
     assert(op->getLHS()->isGLValue());
@@ -665,6 +701,8 @@ TransferStmtVisitor::VisitBinaryOperator(const clang::BinaryOperator *op) {
 
 std::optional<std::string> TransferStmtVisitor::VisitConditionalOperator(
     const clang::ConditionalOperator *op) {
+  debugVisitor("VisitConditionalOperator");
+
   clang::QualType type = op->getType().getCanonicalType();
 
   if (op->isGLValue() || type->isPointerType()) {
@@ -679,6 +717,8 @@ std::optional<std::string> TransferStmtVisitor::VisitConditionalOperator(
 
 std::optional<std::string>
 TransferStmtVisitor::VisitInitListExpr(const clang::InitListExpr *init_list) {
+  debugVisitor("VisitInitListExpr");
+
   if (init_list->isSyntacticForm()) {
     // We are only interested in the semantic form, which is fully realized,
     // and is the one considered to be the initializer.
@@ -796,6 +836,8 @@ void ConstrainFunctionLifetimesForCall(
 
 std::optional<std::string>
 TransferStmtVisitor::VisitCallExpr(const clang::CallExpr *call) {
+  debugVisitor("VisitCallExpr");
+
   struct CalleeInfo {
     bool is_member_operator;
     FunctionLifetimes lifetimes;
