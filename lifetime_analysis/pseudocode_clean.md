@@ -109,13 +109,102 @@ This is the transfer function for each kind of statement:
 
 - `VisitExpr`: do nothing
 - `VisitReturnStmt`: only need to handle pointers and references
-    ```
-    if (isPointerType(return) or (isReferenceType(return))) {
-        expr_points_to = points_to_map.GetExprObjectSet(return)
-        GenerateConstraintsForAssignment()
-    }
-    ```
+  ```
+  if (isPointerType(return) or (isReferenceType(return))) {
+      expr_points_to = points_to_map.GetExprObjectSet(return)
+      GenerateConstraintsForAssignment()
+  }
+  ```
+- `VisitUnaryOperator`:
 
+  - AddrOf (`&`): add the corresponding object to the `expr_objects_[expr]` of the `points_to_map`
+  - Deref (`*`): same as AddrOf, but assert the opposite
+  - PostInc/PostDec
+  - PreInc/PostInc
+  - The rest: do nothing
+
+- `VisitBinaryOperator`:
+
+  - Assign (`=`):
+
+  ```
+  input:
+    op -> assign operator
+    lhs, rhs
+  begin:
+    lhs_points_to = points_to_map.GetExprObjectSet(lhs)
+    points_to_map.SetExprObjectSet(op, lhs_points_to)
+
+    if (PointerType(lhs)) {
+        rhs_points_to = points_to_map.GetExprObjectSet(rhs)
+        // lhs points to all rhs pointers
+        points_to_map.SetPointerPointsToSet(lhs_points_to, rhs_points_to)
+    }
+  ```
+
+  - Add/Sub (`+`/`-`): consider only pointer arithmetic (only one of the operands is a pointer). If this is the case, add that pointer to the points_to_map. Otherwise, do nothing
+
+- `VisitCallExpr`:
+
+  - finds all possible callees
+  - for each callee:
+    - for each param in the declaration, find the points-to-set of that param and assigns it to the arg object in the "parent" function
+    - find the points-to-set of the return value and assigns it to the call object
+
+  ```
+  callees = EmptyVector()
+  direct_callee = getDirectCallee(call)
+
+  if (direct_callee) {
+      // skip builtin
+      callee_lifetimes = GetLifetimes(direct_callee)
+
+      // skip member functions
+      callees.push_back(callee_lifetimes)
+  } else {
+    // skip function pointer calls and virtual calls
+    // in this case, determine the callees by analyzing the possible objects that the callee could point to
+  }
+
+  for calle in callees {
+    for arg in arguments {
+        TransferInitializer(
+            object_repository_.GetCallExprArgumentObject(call, i),
+            callee.type,
+            object_repository,
+            arg,
+            points_to_map,
+            constraints
+        )
+    }
+    // skip member functions
+  }
+
+  if (!RecordObject(call)) {
+    return_points = points_to_map.GetPointerPointsToSet(call)
+    if (NotEmpty(return_points)) {
+        points_to_map.SetExprObjectSet(call, return_points)
+    }
+  }
+
+  ```
+
+  `TransferInitializer` gets the points-to of the ith target function's argument and gives it to the ith call arg object
+
+  ```
+  TransferInitializer(destination, type, object_repository, init_expr, points_to_map, constraints) {
+    if (isArrayType(type)) {
+        // do something
+    }
+    if (isRecordType(type)) {
+        // do something
+    }
+    if (isPointerType(type) or isReferenceType(type) or isStructureOrClassType(type)) {
+        init_points_to = points_to_map.GetExprObjectSet(init_expr) // get points-to of the arg
+        points_to_map.SetPointerPointsToSet(destination, init_points_to)
+    }
+  }
+  ```
 
 ---
 

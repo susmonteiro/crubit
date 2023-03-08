@@ -13,19 +13,25 @@ namespace tidy {
 namespace lifetimes {
 namespace {
 
-TEST_F(LifetimeAnalysisTest, TwoFunctions) {
+TEST_F(LifetimeAnalysisTest, ReturnArgumentPtr) {
   EXPECT_THAT(GetLifetimes(R"(
-    int* target(int* a) {
-      a = a + 1;
-      return a;
-    }
-
-    int* mainTarget(int* b) {
-      int* z = target(b);
-      return z;
+    int* target(int* a, int *b, int *c) {
+      c = a + 1;
+      b = c + 1;
+      return b;
     }
   )"),
-              LifetimesAre({{"mainTarget", "a -> a"}, {"target", "a -> a"}}));
+              LifetimesAre({{"target", "a, b, c -> a"}}));
+}
+
+TEST_F(LifetimeAnalysisTest, Test2) {
+  EXPECT_THAT(GetLifetimes(R"(
+    int* target(int* a, int* b) {
+      *a = *a + *b;
+      return a;
+    }
+  )"),
+              LifetimesAre({{"target", "a, b -> a"}}));
 }
 
 } // namespace

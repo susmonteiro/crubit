@@ -586,16 +586,19 @@ TransferStmtVisitor::VisitUnaryOperator(const clang::UnaryOperator *op) {
   // The actual dereferencing happens in the LValueToRValue CastExpr,
   // see TransferCastExpr().
 
+  std::cout << clang::UnaryOperator::getOpcodeStr(op->getOpcode()).data()
+            << " -> "; // debug
+
   switch (op->getOpcode()) {
   case clang::UO_AddrOf:
-    // TODO take a look at this
+    std::cout << "AddrOf operator" << std::endl;
     assert(!op->isGLValue());
     assert(op->getSubExpr()->isGLValue());
     points_to_map_.SetExprObjectSet(op, sub_points_to);
     break;
 
   case clang::UO_Deref:
-    // TODO take a look at this
+    std::cout << "Deref operator" << std::endl;
     assert(op->isGLValue());
     assert(!op->getSubExpr()->isGLValue());
     points_to_map_.SetExprObjectSet(op, sub_points_to);
@@ -619,6 +622,9 @@ TransferStmtVisitor::VisitUnaryOperator(const clang::UnaryOperator *op) {
   default:
     break;
   }
+
+  debug(sub_points_to.DebugString()); // debug
+
   return std::nullopt;
 }
 
@@ -644,8 +650,13 @@ std::optional<std::string>
 TransferStmtVisitor::VisitBinaryOperator(const clang::BinaryOperator *op) {
   debugVisitor("VisitBinaryOperator");
 
+  std::cout << clang::BinaryOperator::getOpcodeStr(op->getOpcode()).data()
+            << " -> "; // debug
+
   switch (op->getOpcode()) {
   case clang::BO_Assign: {
+    std::cout << "Assign operator" << std::endl;
+
     assert(op->getLHS()->isGLValue());
     ObjectSet lhs_points_to = points_to_map_.GetExprObjectSet(op->getLHS());
     points_to_map_.SetExprObjectSet(op, lhs_points_to);
@@ -666,8 +677,14 @@ TransferStmtVisitor::VisitBinaryOperator(const clang::BinaryOperator *op) {
         single_valued_objects_.Contains(*lhs_points_to.begin())) {
       // Replacing the points-to-set entirely does not generate any
       // constraints.
+      debug("LHS points to:");
+      debug(lhs_points_to.DebugString());
+      debug("RHS points to:");
+      debug(rhs_points_to.DebugString());
+
       points_to_map_.SetPointerPointsToSet(lhs_points_to, rhs_points_to);
     } else {
+      debug("HandlePointsToSetExtension"); // debug
       HandlePointsToSetExtension(lhs_points_to, rhs_points_to,
                                  op->getLHS()->getType(), object_repository_,
                                  points_to_map_, constraints_);
@@ -677,11 +694,14 @@ TransferStmtVisitor::VisitBinaryOperator(const clang::BinaryOperator *op) {
 
   case clang::BO_Add:
   case clang::BO_Sub: {
+    std::cout << "Add/Sub operator" << std::endl;
+
     // Pointer arithmetic.
     // We are only interested in the case in which exactly one of the two
     // operands is a pointer (in particular we want to exclude int* - int*).
-    if (op->getLHS()->getType()->isPointerType() ^
+    if (op->getLHS()->getType()->isPointerType() ^ // XOR
         op->getRHS()->getType()->isPointerType()) {
+      debug("Pointer arithmetic");
       if (op->getLHS()->getType()->isPointerType()) {
         points_to_map_.SetExprObjectSet(
             op, points_to_map_.GetExprObjectSet(op->getLHS()));
@@ -870,6 +890,10 @@ TransferStmtVisitor::VisitCallExpr(const clang::CallExpr *call) {
     FunctionLifetimes callee_lifetimes =
         std::get<FunctionLifetimes>(callee_lifetimes_or_error);
 
+    std::cout << decl->getNameAsString()
+              << " lifetimes: " << callee_lifetimes.DebugString()
+              << std::endl; // debug
+
     bool is_member_operator = clang::isa<clang::CXXOperatorCallExpr>(call) &&
                               clang::isa<clang::CXXMethodDecl>(decl);
     callees.push_back(
@@ -880,6 +904,8 @@ TransferStmtVisitor::VisitCallExpr(const clang::CallExpr *call) {
 
   const clang::FunctionDecl *direct_callee = call->getDirectCallee();
   if (direct_callee) {
+    std::cout << "Direct callee name: " << direct_callee->getNameAsString()
+              << std::endl;
     // This code path is needed for non-static member functions, as those don't
     // have an `Object` for their callees.
     if (auto err = add_callee_from_decl(direct_callee); err.has_value()) {
@@ -908,6 +934,7 @@ TransferStmtVisitor::VisitCallExpr(const clang::CallExpr *call) {
         callee.lifetimes, object_repository_.GetCallExprVirtualLifetimes(call),
         constraints_);
 
+    // + initialization of i -> discard "this" argument
     for (size_t i = callee.is_member_operator ? 1 : 0; i < call->getNumArgs();
          i++) {
       // We can't just use SetPointerPointsToSet here because call->getArg(i)
@@ -931,6 +958,7 @@ TransferStmtVisitor::VisitCallExpr(const clang::CallExpr *call) {
       this_object_set = points_to_map_.GetExprObjectSet(
           member_call->getImplicitObjectArgument());
     }
+
     if (this_object_set.has_value()) {
       const Object *this_ptr = object_repository_.GetCallExprThisPointer(call);
       HandlePointsToSetExtension({this_ptr}, *this_object_set, this_ptr->Type(),
@@ -940,11 +968,14 @@ TransferStmtVisitor::VisitCallExpr(const clang::CallExpr *call) {
   }
 
   if (IsInitExprInitializingARecordObject(call)) {
+    debug("RECORD");
     const Object *init_object = object_repository_.GetInitializedObject(call);
     GenerateConstraintsForObjectLifetimeEquality(
         {init_object}, {object_repository_.GetCallExprRetObject(call)},
         init_object->Type(), points_to_map_, object_repository_, constraints_);
   } else {
+    debug("NON RECORD");
+
     ObjectSet ret_pts = points_to_map_.GetPointerPointsToSet(
         object_repository_.GetCallExprRetObject(call));
     // SetExprObjectSet will assert-fail if `call` does not have a type that can
