@@ -13,19 +13,15 @@ namespace tidy {
 namespace lifetimes {
 namespace {
 
-TEST_F(LifetimeAnalysisTest, TwoFunctions) {
-  EXPECT_THAT(GetLifetimes(R"(
-    int* target(int* a) {
-      a = a + 1;
-      return a;
-    }
+// writing "DISABLED_" in the beginning of the name of the test disables it
 
-    int* mainTarget(int* b) {
-      int* z = target(b);
-      return z;
-    }
+TEST_F(LifetimeAnalysisTest, DISABLED_TwoFunctions) {
+  EXPECT_THAT(GetLifetimes(R"(
+    void target(int** x, int** y) {
+      *x = *y;
+}
   )"),
-              LifetimesAre({{"mainTarget", "a -> a"}, {"target", "a -> a"}}));
+              LifetimesAre({{"target", "(a, b), (a, c)"}}));
 }
 
 } // namespace

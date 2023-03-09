@@ -4,9 +4,9 @@
 
 // Tests for basic functionality.
 
+#include "lifetime_analysis/test/lifetime_analysis_test.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "lifetime_analysis/test/lifetime_analysis_test.h"
 
 namespace clang {
 namespace tidy {
@@ -152,6 +152,7 @@ TEST_F(LifetimeAnalysisTest, ReturnPtrFromRef) {
               LifetimesAre({{"target", "a -> a"}}));
 }
 
+// TODO see this
 TEST_F(LifetimeAnalysisTest, ReturnDereferencedArgument) {
   EXPECT_THAT(GetLifetimes(R"(
     int* target(int** a) {
@@ -183,6 +184,7 @@ TEST_F(LifetimeAnalysisTest, ReturnLocalViaRef) {
                              "ERROR: function returns reference to a local"}}));
 }
 
+// TODO see static
 TEST_F(LifetimeAnalysisTest, ReturnStaticViaPtr) {
   EXPECT_THAT(GetLifetimes(R"(
     int* target() {
@@ -507,7 +509,7 @@ TEST_F(LifetimeAnalysisTest, OverwriteMultipleDestinations) {
               LifetimesAre({{"target", "a, a -> a"}}));
 }
 
-}  // namespace
-}  // namespace lifetimes
-}  // namespace tidy
-}  // namespace clang
+} // namespace
+} // namespace lifetimes
+} // namespace tidy
+} // namespace clang
