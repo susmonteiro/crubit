@@ -15,13 +15,17 @@ namespace {
 
 // writing "DISABLED_" in the beginning of the name of the test disables it
 
-TEST_F(LifetimeAnalysisTest, DISABLED_TwoFunctions) {
+TEST_F(LifetimeAnalysisTest, TwoFunctions) {
   EXPECT_THAT(GetLifetimes(R"(
-    void target(int** x, int** y) {
-      *x = *y;
-}
+    int* fn(int* x, int* y, int* z) {
+      x = z;
+      x = y;
+      y = z;
+      return x;
+    }
+
   )"),
-              LifetimesAre({{"target", "(a, b), (a, c)"}}));
+              LifetimesAre({{"fn", "a, b, c -> b"}}));
 }
 
 } // namespace
