@@ -13,19 +13,15 @@ namespace tidy {
 namespace lifetimes {
 namespace {
 
-// writing "DISABLED_" in the beginning of the name of the test disables it
+// ! writing "DISABLED_" in the beginning of the name of the test disables it
 
-TEST_F(LifetimeAnalysisTest, TwoFunctions) {
-  EXPECT_THAT(GetLifetimes(R"(
-    int* fn(int* x, int* y, int* z) {
-      x = z;
-      x = y;
-      y = z;
-      return x;
-    }
-
-  )"),
-              LifetimesAre({{"fn", "a, b, c -> b"}}));
+TEST_F(LifetimeAnnotationsTest, LifetimeAnnotation_Simple) {
+  EXPECT_THAT(GetNamedLifetimeAnnotations(WithLifetimeMacros(R"(
+        [[clang::annotate("lifetimes", "a -> a")]]
+        int* f1(int*);
+        int* $a f2(int* $a);
+  )")),
+              IsOkAndHolds(LifetimesAre({{"f1", "a -> a"}, {"f2", "a -> a"}})));
 }
 
 } // namespace

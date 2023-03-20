@@ -21,14 +21,14 @@ namespace tidy {
 namespace lifetimes {
 
 class LifetimeLattice {
- public:
+public:
   // Creates a lattice holding an empty points-to map and empty constraints.
   LifetimeLattice() = default;
 
-  LifetimeLattice(const LifetimeLattice&) = default;
-  LifetimeLattice(LifetimeLattice&&) = default;
-  LifetimeLattice& operator=(const LifetimeLattice&) = default;
-  LifetimeLattice& operator=(LifetimeLattice&&) = default;
+  LifetimeLattice(const LifetimeLattice &) = default;
+  LifetimeLattice(LifetimeLattice &&) = default;
+  LifetimeLattice &operator=(const LifetimeLattice &) = default;
+  LifetimeLattice &operator=(LifetimeLattice &&) = default;
 
   // Creates a lattice containing the given points-to map, single-valued object
   // set, and empty constraints.
@@ -42,13 +42,13 @@ class LifetimeLattice {
 
   // Returns the points-to map.
   // Precondition: !IsError().
-  PointsToMap& PointsTo();
-  const PointsToMap& PointsTo() const;
+  PointsToMap &PointsTo();
+  const PointsToMap &PointsTo() const;
 
   // Returns the lifetime constraints.
   // Precondition: !IsError().
-  LifetimeConstraints& Constraints();
-  const LifetimeConstraints& Constraints() const;
+  LifetimeConstraints &Constraints();
+  const LifetimeConstraints &Constraints() const;
 
   // Returns the set of single-valued objects, i.e. objects that will be
   // guaranteed to be overwritten completely by a write operation.
@@ -57,8 +57,8 @@ class LifetimeLattice {
   // not (as they could be arrays), but values that represent pointees of
   // references can be.
   // Precondition: !IsError().
-  ObjectSet& SingleValuedObjects();
-  const ObjectSet& SingleValuedObjects() const;
+  ObjectSet &SingleValuedObjects();
+  const ObjectSet &SingleValuedObjects() const;
 
   // Returns whether the lattice is in the error state.
   bool IsError() const { return std::holds_alternative<std::string>(var_); }
@@ -74,23 +74,24 @@ class LifetimeLattice {
   // returns the effect of the operation.
   // If either of the lattices contains an error, sets this lattice to the
   // first error encountered.
-  clang::dataflow::LatticeJoinEffect join(const LifetimeLattice& other);
+  clang::dataflow::LatticeJoinEffect join(const LifetimeLattice &other);
 
   // Compares for (in-)equality.
   // All error states are considered to be equal.
-  bool operator==(const LifetimeLattice& other) const;
-  bool operator!=(const LifetimeLattice& other) const {
+  bool operator==(const LifetimeLattice &other) const;
+  bool operator!=(const LifetimeLattice &other) const {
     return !(*this == other);
   }
 
- private:
+private:
+  // * variant: holds one of the values
   std::variant<std::tuple<PointsToMap, LifetimeConstraints, ObjectSet>,
                std::string>
       var_;
 };
 
-}  // namespace lifetimes
-}  // namespace tidy
-}  // namespace clang
+} // namespace lifetimes
+} // namespace tidy
+} // namespace clang
 
-#endif  // DEVTOOLS_RUST_CC_INTEROP_LIFETIME_ANALYSIS_LIFETIME_LATTICE_H_
+#endif // DEVTOOLS_RUST_CC_INTEROP_LIFETIME_ANALYSIS_LIFETIME_LATTICE_H_

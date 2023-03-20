@@ -139,6 +139,18 @@ cc_test(
 )
 
 cc_test(
+    name = "tmp_annotations",
+    size = "small",
+    srcs = ["tmp_annotations.cc"],
+    deps = [
+        ":lifetime_analysis_test",
+        "@com_google_googletest//:gtest_main",
+        "@absl//absl/status",
+        "//common:status_test_matchers"
+    ],
+)
+
+cc_test(
     name = "static_lifetime",
     srcs = ["static_lifetime.cc"],
     deps = [

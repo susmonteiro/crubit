@@ -33,8 +33,8 @@ public:
   virtual ~FunctionLifetimeFactory() {}
 
   // * virtual methods -> implemented by subclasses
-  // * provide dynamic dispatch (at runtime call the actual method based on the
-  // type of the object)
+  // * provide dynamic dispatch
+  // * (at runtime call the actual method based on the type of the object)
 
   virtual llvm::Expected<ValueLifetimes>
   CreateThisLifetimes(clang::QualType type,

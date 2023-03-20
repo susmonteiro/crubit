@@ -20,7 +20,7 @@ namespace lifetimes {
 
 // A lifetime variable or constant lifetime.
 class Lifetime {
- public:
+public:
   // Creates an invalid lifetime.
   //
   // This is provided because containers need default constructors. It is not
@@ -30,8 +30,8 @@ class Lifetime {
   // Use one of the static member functions below to create a valid lifetime.
   Lifetime();
 
-  Lifetime(const Lifetime&) = default;
-  Lifetime& operator=(const Lifetime&) = default;
+  Lifetime(const Lifetime &) = default;
+  Lifetime &operator=(const Lifetime &) = default;
 
   // Creates a new lifetime variable.
   static Lifetime CreateVariable();
@@ -65,7 +65,7 @@ class Lifetime {
 
   bool operator!=(Lifetime other) const { return !(*this == other); }
 
- private:
+private:
   explicit Lifetime(int id);
 
   static Lifetime InvalidEmpty();
@@ -81,16 +81,15 @@ class Lifetime {
   static std::atomic<int> next_local_id_;
 };
 
-std::ostream& operator<<(std::ostream& os, Lifetime lifetime);
+std::ostream &operator<<(std::ostream &os, Lifetime lifetime);
 
-}  // namespace lifetimes
-}  // namespace tidy
-}  // namespace clang
+} // namespace lifetimes
+} // namespace tidy
+} // namespace clang
 
 namespace llvm {
 
-template <>
-struct DenseMapInfo<clang::tidy::lifetimes::Lifetime, void> {
+template <> struct DenseMapInfo<clang::tidy::lifetimes::Lifetime, void> {
   static clang::tidy::lifetimes::Lifetime getEmptyKey() {
     return clang::tidy::lifetimes::Lifetime::InvalidEmpty();
   }
@@ -109,18 +108,17 @@ struct DenseMapInfo<clang::tidy::lifetimes::Lifetime, void> {
   }
 };
 
-}  // namespace llvm
+} // namespace llvm
 
 namespace std {
 
-template <>
-struct less<clang::tidy::lifetimes::Lifetime> {
-  bool operator()(const clang::tidy::lifetimes::Lifetime& l1,
-                  const clang::tidy::lifetimes::Lifetime& l2) const {
+template <> struct less<clang::tidy::lifetimes::Lifetime> {
+  bool operator()(const clang::tidy::lifetimes::Lifetime &l1,
+                  const clang::tidy::lifetimes::Lifetime &l2) const {
     return l1.id_ < l2.id_;
   }
 };
 
-}  // namespace std
+} // namespace std
 
-#endif  // CRUBIT_LIFETIME_ANNOTATIONS_LIFETIME_H_
+#endif // CRUBIT_LIFETIME_ANNOTATIONS_LIFETIME_H_

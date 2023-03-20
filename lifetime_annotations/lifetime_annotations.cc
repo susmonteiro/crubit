@@ -5,6 +5,7 @@
 #include "lifetime_annotations/lifetime_annotations.h"
 
 #include <functional>
+#include <iostream>
 #include <memory>
 #include <optional>
 #include <string>
@@ -37,23 +38,29 @@ namespace tidy {
 namespace lifetimes {
 namespace {
 
-llvm::Expected<FunctionLifetimes> ParseLifetimeAnnotations(
-    const clang::FunctionDecl* func, LifetimeSymbolTable& symbol_table,
-    const std::string& lifetimes_str) {
+// debug
+void debug(std::string text) {
+  std::cout << "\033[1;33m>> \033[0m" << text << std::endl;
+}
+
+llvm::Expected<FunctionLifetimes>
+ParseLifetimeAnnotations(const clang::FunctionDecl *func,
+                         LifetimeSymbolTable &symbol_table,
+                         const std::string &lifetimes_str) {
   clang::LangOptions lang_opts;
   clang::Lexer lexer(clang::SourceLocation(), lang_opts, lifetimes_str.data(),
                      lifetimes_str.data(),
                      lifetimes_str.data() + lifetimes_str.size());
 
-  const char* end = lifetimes_str.data() + lifetimes_str.size();
+  const char *end = lifetimes_str.data() + lifetimes_str.size();
 
   auto tok = [&lexer, &lifetimes_str, end]() -> llvm::StringRef {
     clang::Token token;
     if (lexer.getBufferLocation() != end) {
       lexer.LexFromRawLexer(token);
-      return llvm::StringRef(
-          lifetimes_str.data() + token.getLocation().getRawEncoding(),
-          token.getLength());
+      return llvm::StringRef(lifetimes_str.data() +
+                                 token.getLocation().getRawEncoding(),
+                             token.getLength());
     }
     return "";
   };
@@ -71,7 +78,7 @@ llvm::Expected<FunctionLifetimes> ParseLifetimeAnnotations(
 
   FunctionLifetimeFactorySingleCallback factory(
       [&symbol_table,
-       &next_lifetime](const clang::Expr*) -> llvm::Expected<Lifetime> {
+       &next_lifetime](const clang::Expr *) -> llvm::Expected<Lifetime> {
         llvm::StringRef next = next_lifetime();
         if (next.empty()) {
           return llvm::createStringError(
@@ -94,9 +101,10 @@ llvm::Expected<FunctionLifetimes> ParseLifetimeAnnotations(
 // Parse a "(a, b): (a, b), (), a -> b"-style annotation into a
 // FunctionLifetimes.
 // TODO(veluca): this is a temporary solution.
-llvm::Expected<FunctionLifetimes> ParseLifetimeAnnotations(
-    const clang::FunctionDecl* func, LifetimeSymbolTable& symbol_table,
-    const clang::AnnotateAttr* attr) {
+llvm::Expected<FunctionLifetimes>
+ParseLifetimeAnnotations(const clang::FunctionDecl *func,
+                         LifetimeSymbolTable &symbol_table,
+                         const clang::AnnotateAttr *attr) {
   auto error = [func](absl::string_view detail = absl::string_view()) {
     std::string msg = absl::StrCat("Invalid lifetime annotation for function ",
                                    func->getNameAsString());
@@ -121,11 +129,14 @@ llvm::Expected<FunctionLifetimes> ParseLifetimeAnnotations(
   return ParseLifetimeAnnotations(func, symbol_table, lifetimes.str());
 }
 
-llvm::Expected<FunctionLifetimes> GetLifetimeAnnotationsInternal(
-    const clang::FunctionDecl* func, LifetimeSymbolTable& symbol_table,
-    bool elision_enabled) {
-  const clang::AnnotateAttr* lifetime_annotation = nullptr;
-  for (const clang::Attr* attr : func->attrs()) {
+llvm::Expected<FunctionLifetimes>
+GetLifetimeAnnotationsInternal(const clang::FunctionDecl *func,
+                               LifetimeSymbolTable &symbol_table,
+                               bool elision_enabled) {
+  const clang::AnnotateAttr *lifetime_annotation = nullptr;
+  // * clang::annotate annotations
+  for (const clang::Attr *attr : func->attrs()) {
+    debug("Func has attrs");
     if (auto annotate = clang::dyn_cast<clang::AnnotateAttr>(attr)) {
       if (annotate->getAnnotation() == "lifetimes") {
         if (lifetime_annotation != nullptr) {
@@ -139,20 +150,24 @@ llvm::Expected<FunctionLifetimes> GetLifetimeAnnotationsInternal(
       }
     }
   }
+
+  debug("No more attrs");
+
+  // * lifetime_annotation will be empty if they are clang::annotate
   if (lifetime_annotation) {
+    debug("ParseLifetimeAnnotations");
     return ParseLifetimeAnnotations(func, symbol_table, lifetime_annotation);
   }
 
   class Factory : public FunctionLifetimeFactory {
-   public:
-    Factory(bool elision_enabled, const clang::FunctionDecl* func,
-            LifetimeSymbolTable& symbol_table)
-        : elision_enabled(elision_enabled),
-          func(func),
+  public:
+    Factory(bool elision_enabled, const clang::FunctionDecl *func,
+            LifetimeSymbolTable &symbol_table)
+        : elision_enabled(elision_enabled), func(func),
           symbol_table(symbol_table) {}
 
-   private:
-    llvm::Expected<Lifetime> LifetimeFromName(const clang::Expr* name) const {
+  private:
+    llvm::Expected<Lifetime> LifetimeFromName(const clang::Expr *name) const {
       llvm::StringRef name_str;
       if (llvm::Error err = EvaluateAsStringLiteral(name, func->getASTContext())
                                 .moveInto(name_str)) {
@@ -162,7 +177,7 @@ llvm::Expected<FunctionLifetimes> GetLifetimeAnnotationsInternal(
     }
 
     LifetimeFactory ParamLifetimeFactory() const {
-      return [this](const clang::Expr* name) -> llvm::Expected<Lifetime> {
+      return [this](const clang::Expr *name) -> llvm::Expected<Lifetime> {
         if (name) {
           Lifetime lifetime;
           if (llvm::Error err = LifetimeFromName(name).moveInto(lifetime)) {
@@ -190,8 +205,9 @@ llvm::Expected<FunctionLifetimes> GetLifetimeAnnotationsInternal(
       };
     }
 
-    llvm::Expected<ValueLifetimes> CreateThisLifetimes(
-        clang::QualType type, const clang::Expr* lifetime_name) const override {
+    llvm::Expected<ValueLifetimes>
+    CreateThisLifetimes(clang::QualType type,
+                        const clang::Expr *lifetime_name) const override {
       LifetimeFactory lifetime_factory = ParamLifetimeFactory();
 
       clang::QualType pointee_type = PointeeType(type);
@@ -215,16 +231,16 @@ llvm::Expected<FunctionLifetimes> GetLifetimeAnnotationsInternal(
           type, ObjectLifetimes(object_lifetime, value_lifetimes));
     }
 
-    llvm::Expected<ValueLifetimes> CreateParamLifetimes(
-        clang::QualType param_type,
-        clang::TypeLoc param_type_loc) const override {
+    llvm::Expected<ValueLifetimes>
+    CreateParamLifetimes(clang::QualType param_type,
+                         clang::TypeLoc param_type_loc) const override {
       return ValueLifetimes::Create(param_type, param_type_loc,
                                     ParamLifetimeFactory());
     }
 
     static std::optional<Lifetime> GetSingleInputLifetime(
-        const llvm::SmallVector<ValueLifetimes>& param_lifetimes,
-        const std::optional<ValueLifetimes>& this_lifetimes) {
+        const llvm::SmallVector<ValueLifetimes> &param_lifetimes,
+        const std::optional<ValueLifetimes> &this_lifetimes) {
       // If we have an implicit `this` parameter, its lifetime is assigned to
       // all lifetimes in the return type.
       if (this_lifetimes.has_value()) {
@@ -232,7 +248,7 @@ llvm::Expected<FunctionLifetimes> GetLifetimeAnnotationsInternal(
       }
 
       llvm::DenseSet<Lifetime> all_input_lifetimes;
-      for (const ValueLifetimes& v : param_lifetimes) {
+      for (const ValueLifetimes &v : param_lifetimes) {
         v.Traverse([&all_input_lifetimes](Lifetime l, Variance) {
           all_input_lifetimes.insert(l);
         });
@@ -250,8 +266,8 @@ llvm::Expected<FunctionLifetimes> GetLifetimeAnnotationsInternal(
 
     llvm::Expected<ValueLifetimes> CreateReturnLifetimes(
         clang::QualType return_type, clang::TypeLoc return_type_loc,
-        const llvm::SmallVector<ValueLifetimes>& param_lifetimes,
-        const std::optional<ValueLifetimes>& this_lifetimes) const override {
+        const llvm::SmallVector<ValueLifetimes> &param_lifetimes,
+        const std::optional<ValueLifetimes> &this_lifetimes) const override {
       // TODO(veluca): adapt to lifetime elision for function pointers.
 
       std::optional<Lifetime> input_lifetime =
@@ -260,7 +276,7 @@ llvm::Expected<FunctionLifetimes> GetLifetimeAnnotationsInternal(
       return ValueLifetimes::Create(
           return_type, return_type_loc,
           [&input_lifetime,
-           this](const clang::Expr* name) -> llvm::Expected<Lifetime> {
+           this](const clang::Expr *name) -> llvm::Expected<Lifetime> {
             if (name) {
               Lifetime lifetime;
               if (llvm::Error err = LifetimeFromName(name).moveInto(lifetime)) {
@@ -294,22 +310,23 @@ llvm::Expected<FunctionLifetimes> GetLifetimeAnnotationsInternal(
     }
 
     bool elision_enabled;
-    const clang::FunctionDecl* func;
-    LifetimeSymbolTable& symbol_table;
+    const clang::FunctionDecl *func;
+    LifetimeSymbolTable &symbol_table;
   };
 
   Factory factory(elision_enabled, func, symbol_table);
   return FunctionLifetimes::CreateForDecl(func, factory);
 }
-}  // namespace
+} // namespace
 
-llvm::Expected<FunctionLifetimes> GetLifetimeAnnotations(
-    const clang::FunctionDecl* func, const LifetimeAnnotationContext& context,
-    LifetimeSymbolTable* symbol_table) {
+llvm::Expected<FunctionLifetimes>
+GetLifetimeAnnotations(const clang::FunctionDecl *func,
+                       const LifetimeAnnotationContext &context,
+                       LifetimeSymbolTable *symbol_table) {
   // TODO(mboehme): if we have multiple declarations of a function, make sure
   // they are all annotated with the same lifetimes.
 
-  clang::SourceManager& source_manager =
+  clang::SourceManager &source_manager =
       func->getASTContext().getSourceManager();
   clang::FileID file_id =
       source_manager.getFileID(func->getSourceRange().getBegin());
@@ -322,9 +339,10 @@ llvm::Expected<FunctionLifetimes> GetLifetimeAnnotations(
   return GetLifetimeAnnotationsInternal(func, *symbol_table, elision_enabled);
 }
 
-llvm::Expected<FunctionLifetimes> ParseLifetimeAnnotations(
-    const clang::FunctionDecl* func, const std::string& lifetimes_str,
-    LifetimeSymbolTable* symbol_table) {
+llvm::Expected<FunctionLifetimes>
+ParseLifetimeAnnotations(const clang::FunctionDecl *func,
+                         const std::string &lifetimes_str,
+                         LifetimeSymbolTable *symbol_table) {
   LifetimeSymbolTable throw_away_symbol_table;
   if (!symbol_table) {
     symbol_table = &throw_away_symbol_table;
@@ -335,33 +353,33 @@ llvm::Expected<FunctionLifetimes> ParseLifetimeAnnotations(
 namespace {
 
 class LifetimeElisionPragmaHandler : public clang::PragmaHandler {
- public:
+public:
   explicit LifetimeElisionPragmaHandler(
       std::shared_ptr<LifetimeAnnotationContext> context)
       : clang::PragmaHandler("lifetime_elision"), context_(context) {}
 
-  void HandlePragma(clang::Preprocessor& preprocessor,
+  void HandlePragma(clang::Preprocessor &preprocessor,
                     clang::PragmaIntroducer introducer,
-                    clang::Token&) override {
-    clang::SourceManager& source_manager = preprocessor.getSourceManager();
+                    clang::Token &) override {
+    clang::SourceManager &source_manager = preprocessor.getSourceManager();
     clang::FileID file_id = source_manager.getFileID(introducer.Loc);
     context_->lifetime_elision_files.insert(file_id);
   }
 
- private:
+private:
   std::shared_ptr<LifetimeAnnotationContext> context_;
 };
 
-}  // namespace
+} // namespace
 
 void AddLifetimeAnnotationHandlers(
-    clang::Preprocessor& preprocessor,
+    clang::Preprocessor &preprocessor,
     std::shared_ptr<LifetimeAnnotationContext> context) {
   // Preprocessor takes ownership of the handler.
   preprocessor.AddPragmaHandler("clang",
                                 new LifetimeElisionPragmaHandler(context));
 }
 
-}  // namespace lifetimes
-}  // namespace tidy
-}  // namespace clang
+} // namespace lifetimes
+} // namespace tidy
+} // namespace clang
