@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+#include "lifetime_annotations/debug_lifetimes.h"
 #include "lifetime_annotations/lifetime.h"
 #include "lifetime_annotations/lifetime_substitutions.h"
 #include "lifetime_annotations/lifetime_symbol_table.h"
@@ -100,7 +101,7 @@ class ValueLifetimes {
   }
 
   // * static methods: belong to the class instead of an instance of it
-  // + can be called without create an instance
+  // + can be called without creating an instance
   // Creates a ValueLifetimes for a pointer to a given ObjectLifetimes.
   static ValueLifetimes PointerTo(clang::QualType pointer_type,
                                   const ObjectLifetimes& object);

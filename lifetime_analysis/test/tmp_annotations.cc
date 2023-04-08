@@ -72,7 +72,7 @@ std::string WithLifetimeMacros(absl::string_view code) {
   }
   absl::StrAppend(&result, "#define $static $(static)\n");
   absl::StrAppend(&result, code);
-  //   std::cout << "Resulting code" << result << std::endl;
+    // std::cout << "Resulting code" << result << std::endl;
   return result;
 }
 
@@ -160,7 +160,7 @@ protected:
 
 TEST_F(LifetimeAnnotationsTest, LifetimeAnnotation_Simple) {
   EXPECT_THAT(GetNamedLifetimeAnnotations(WithLifetimeMacros(R"(
-        int* $a f(int* $a);
+        int* $a f(int* $a x);
   )")),
               IsOkAndHolds(LifetimesAre({{"f", "a -> a"}})));
 }

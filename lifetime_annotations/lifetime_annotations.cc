@@ -151,8 +151,6 @@ GetLifetimeAnnotationsInternal(const clang::FunctionDecl *func,
     }
   }
 
-  debug("No more attrs");
-
   // * lifetime_annotation will be empty if they are clang::annotate
   if (lifetime_annotation) {
     debug("ParseLifetimeAnnotations");
@@ -165,6 +163,10 @@ GetLifetimeAnnotationsInternal(const clang::FunctionDecl *func,
             LifetimeSymbolTable &symbol_table)
         : elision_enabled(elision_enabled), func(func),
           symbol_table(symbol_table) {}
+
+    LifetimeSymbolTable getLifetimeSymbolTable() {
+      return symbol_table;
+    }
 
   private:
     llvm::Expected<Lifetime> LifetimeFromName(const clang::Expr *name) const {
@@ -315,7 +317,15 @@ GetLifetimeAnnotationsInternal(const clang::FunctionDecl *func,
   };
 
   Factory factory(elision_enabled, func, symbol_table);
-  return FunctionLifetimes::CreateForDecl(func, factory);
+  auto func_lifetimes = FunctionLifetimes::CreateForDecl(func, factory);
+
+  debugLifetimes("Symbol table has stored:");
+  auto name_to_lifetime = factory.getLifetimeSymbolTable().GetMapping();
+  for (const auto &pair : name_to_lifetime) {
+    std::cout << pair.getKey().str() << ": " << pair.getValue().DebugString() << '\n';
+  }
+
+  return func_lifetimes;
 }
 } // namespace
 

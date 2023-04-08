@@ -24,6 +24,23 @@ cc_test(
 )
 
 cc_library(
+    name = "debug_lifetimes",
+    srcs = [
+        "debug_lifetimes.cc",
+    ],
+    hdrs = [
+        "debug_lifetimes.h",
+    ],
+    deps = [
+        "@absl//absl/strings",
+        "@absl//absl/strings:str_format",
+        "@llvm-project//clang:ast",
+        "@llvm-project//clang:basic",
+        "@llvm-project//llvm:Support",
+    ],
+)
+
+cc_library(
     name = "type_lifetimes",
     srcs = [
         "function_lifetimes.cc",
@@ -35,6 +52,7 @@ cc_library(
     ],
     deps = [
         ":lifetime",
+        ":debug_lifetimes",
         ":lifetime_substitutions",
         ":lifetime_symbol_table",
         ":pointee_type",
@@ -52,6 +70,7 @@ cc_library(
     hdrs = ["lifetime_annotations.h"],
     deps = [
         ":lifetime_symbol_table",
+        ":debug_lifetimes",
         ":pointee_type",
         ":type_lifetimes",
         "@absl//absl/strings",

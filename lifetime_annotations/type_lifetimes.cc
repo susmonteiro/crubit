@@ -13,10 +13,6 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_join.h"
-#include "lifetime_annotations/function_lifetimes.h"
-#include "lifetime_annotations/lifetime.h"
-#include "lifetime_annotations/lifetime_symbol_table.h"
-#include "lifetime_annotations/pointee_type.h"
 #include "clang/AST/Attr.h"
 #include "clang/AST/Attrs.inc"
 #include "clang/AST/DeclCXX.h"
@@ -25,6 +21,10 @@
 #include "clang/AST/Type.h"
 #include "clang/Basic/LLVM.h"
 #include "clang/Basic/SourceLocation.h"
+#include "lifetime_annotations/function_lifetimes.h"
+#include "lifetime_annotations/lifetime.h"
+#include "lifetime_annotations/lifetime_symbol_table.h"
+#include "lifetime_annotations/pointee_type.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMapInfo.h"
 #include "llvm/ADT/Hashing.h"
@@ -298,6 +298,7 @@ llvm::Expected<ValueLifetimes> ValueLifetimes::Create(
   if (!type_loc.isNull()) {
     type_loc = StripAttributes(type_loc, attrs);
   }
+
   llvm::SmallVector<const clang::Expr*> lifetime_names;
   if (llvm::Error err = GetAttributeLifetimes(attrs).moveInto(lifetime_names)) {
     return std::move(err);
@@ -321,6 +322,7 @@ llvm::Expected<ValueLifetimes> ValueLifetimes::Create(
   }
 
   llvm::SmallVector<std::string> lifetime_params = GetLifetimeParameters(type);
+
   if (!lifetime_params.empty() && !lifetime_names.empty() &&
       lifetime_names.size() != lifetime_params.size()) {
     return llvm::createStringError(
