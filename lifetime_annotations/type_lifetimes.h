@@ -331,7 +331,7 @@ llvm::Expected<llvm::StringRef> EvaluateAsStringLiteral(
     const clang::Expr* expr, const clang::ASTContext& ast_context);
 
 }  // namespace lifetimes
-}  // namespace tidy
+}  // namespace 
 }  // namespace clang
 
 namespace llvm {

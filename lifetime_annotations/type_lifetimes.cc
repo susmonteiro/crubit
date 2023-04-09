@@ -304,9 +304,13 @@ llvm::Expected<ValueLifetimes> ValueLifetimes::Create(
     return std::move(err);
   }
 
+  debugLifetimes("Lifetime names");
+  debugLifetimes(lifetime_names);
+
   ValueLifetimes ret(type);
 
   if (const auto* fn = clang::dyn_cast<clang::FunctionProtoType>(type)) {
+    debugLifetimes(">> It's prototype!");
     // TODO(veluca): this will not correctly handle the distinction between
     // parameter and return lifetimes.
     FunctionLifetimeFactorySingleCallback factory(lifetime_factory);
@@ -319,9 +323,14 @@ llvm::Expected<ValueLifetimes> ValueLifetimes::Create(
     ret.function_lifetimes_ =
         std::make_unique<FunctionLifetimes>(std::move(fn_lftm));
     return ret;
+  } else {
+    debugLifetimes(">> Not a prototype!");
   }
 
   llvm::SmallVector<std::string> lifetime_params = GetLifetimeParameters(type);
+
+  debugLifetimes("Lifetime parameters");
+  debugLifetimes(lifetime_params);
 
   if (!lifetime_params.empty() && !lifetime_names.empty() &&
       lifetime_names.size() != lifetime_params.size()) {
@@ -332,6 +341,7 @@ llvm::Expected<ValueLifetimes> ValueLifetimes::Create(
                      " lifetime arguments were given"));
   }
   for (size_t i = 0; i < lifetime_params.size(); ++i) {
+    debugLifetimes("Inside loop of lifetime parameters...");
     Lifetime l;
     const clang::Expr* lifetime_name = nullptr;
     if (i < lifetime_names.size()) {
@@ -342,6 +352,8 @@ llvm::Expected<ValueLifetimes> ValueLifetimes::Create(
     }
     ret.lifetime_parameters_by_name_.Add(lifetime_params[i], l);
   }
+
+  debugLifetimes("After loop");
 
   // Add implicit lifetime parameters for type template parameters.
   if (llvm::Error err = ForEachTemplateArgument(
@@ -381,6 +393,8 @@ llvm::Expected<ValueLifetimes> ValueLifetimes::Create(
     // location of the original `TypeLoc`.
   }
 
+  debugLifetimes("Before pointee");
+
   ValueLifetimes value_lifetimes;
   if (llvm::Error err =
           ValueLifetimes::Create(pointee, pointee_type_loc, lifetime_factory)
@@ -388,9 +402,13 @@ llvm::Expected<ValueLifetimes> ValueLifetimes::Create(
     return std::move(err);
   }
 
+  debugLifetimes("After pointee");
+
   Lifetime object_lifetime;
   const clang::Expr* lifetime_name = nullptr;
+  debugLifetimes("Let's see if lifetime names is empty...");
   if (!lifetime_names.empty()) {
+    debugLifetimes("Lifetime names is not emptyyyyyyy");
     if (lifetime_names.size() != 1) {
       return llvm::createStringError(
           llvm::inconvertibleErrorCode(),
@@ -398,11 +416,19 @@ llvm::Expected<ValueLifetimes> ValueLifetimes::Create(
                        " were given"));
     }
     lifetime_name = lifetime_names.front();
+  } else {
+    debugLifetimes("Yep lifetime names is empty...");
   }
+
+  debugLifetimes("Before move into object_lifetime");
+  lifetime_name->dump();
+
   if (llvm::Error err =
           lifetime_factory(lifetime_name).moveInto(object_lifetime)) {
     return std::move(err);
   }
+
+   debugLifetimes("after move into object_lifetime");
   ret.pointee_lifetimes_ =
       std::make_unique<ObjectLifetimes>(object_lifetime, value_lifetimes);
   return ret;

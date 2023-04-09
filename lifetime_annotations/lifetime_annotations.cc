@@ -180,6 +180,8 @@ GetLifetimeAnnotationsInternal(const clang::FunctionDecl *func,
 
     LifetimeFactory ParamLifetimeFactory() const {
       return [this](const clang::Expr *name) -> llvm::Expected<Lifetime> {
+        debugLifetimes(">> Expression name:");
+        name->dump();
         if (name) {
           Lifetime lifetime;
           if (llvm::Error err = LifetimeFromName(name).moveInto(lifetime)) {
@@ -203,6 +205,7 @@ GetLifetimeAnnotationsInternal(const clang::FunctionDecl *func,
 
         Lifetime lifetime = Lifetime::CreateVariable();
         symbol_table.LookupLifetimeAndMaybeDeclare(lifetime);
+        lifetime.DebugString();
         return lifetime;
       };
     }
