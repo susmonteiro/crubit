@@ -89,6 +89,15 @@ cc_test(
 )
 
 cc_test(
+    name = "function_body",
+    srcs = ["function_body.cc"],
+    deps = [
+        ":lifetime_analysis_test",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
     name = "function_calls",
     srcs = ["function_calls.cc"],
     deps = [

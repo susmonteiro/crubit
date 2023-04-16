@@ -429,6 +429,7 @@ TransferStmtVisitor::VisitStringLiteral(const clang::StringLiteral *strlit) {
 
 std::optional<std::string>
 TransferStmtVisitor::VisitCastExpr(const clang::CastExpr *cast) {
+  debugVisitor("VisitCastExpr");
   switch (cast->getCastKind()) {
   case clang::CK_LValueToRValue: {
     if (cast->getType()->isPointerType()) {
@@ -637,6 +638,8 @@ std::optional<std::string> TransferStmtVisitor::VisitArraySubscriptExpr(
   // [/docs/lifetimes_static_analysis.md](/docs/lifetimes_static_analysis.md)
   // for why we don't track individual array elements.
 
+  debugVisitor("VisitArraySubscriptExpr");
+
   ObjectSet sub_points_to =
       points_to_map_.GetExprObjectSet(subscript->getBase());
 
@@ -779,6 +782,8 @@ TransferStmtVisitor::VisitInitListExpr(const clang::InitListExpr *init_list) {
 
 std::optional<std::string> TransferStmtVisitor::VisitMaterializeTemporaryExpr(
     const clang::MaterializeTemporaryExpr *temporary_expr) {
+
+      debugVisitor("VisitMaterializeTemporaryExpr");
   const Object *temp_object =
       object_repository_.GetTemporaryObject(temporary_expr);
   points_to_map_.SetExprObjectSet(temporary_expr, {temp_object});
@@ -787,6 +792,9 @@ std::optional<std::string> TransferStmtVisitor::VisitMaterializeTemporaryExpr(
 
 std::optional<std::string>
 TransferStmtVisitor::VisitMemberExpr(const clang::MemberExpr *member) {
+
+  debugVisitor("VisitMemberExpr");
+
   ObjectSet struct_points_to =
       points_to_map_.GetExprObjectSet(member->getBase());
 
@@ -820,6 +828,7 @@ TransferStmtVisitor::VisitMemberExpr(const clang::MemberExpr *member) {
 
 std::optional<std::string>
 TransferStmtVisitor::VisitCXXThisExpr(const clang::CXXThisExpr *this_expr) {
+  debugVisitor("VisitCXXThisExpr");
   std::optional<const Object *> this_object =
       object_repository_.GetThisObject();
   assert(this_object.has_value());
