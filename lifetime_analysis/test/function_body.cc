@@ -16,6 +16,8 @@ TEST_F(LifetimeAnalysisTest, TwoFunctions) {
   EXPECT_THAT(GetLifetimes(R"(
     void fn(int* x, int* y, int num) {
         int *p;
+        int *q = x;
+        p = y;
 }
   )"),
               LifetimesAre({{"fn", "a, b, ()"}}));

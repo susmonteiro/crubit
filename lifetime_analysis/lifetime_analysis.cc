@@ -322,12 +322,15 @@ void TransferInitializer(const Object *dest, clang::QualType type,
       type->isStructureOrClassType()) {
     ObjectSet init_points_to = points_to_map.GetExprObjectSet(init_expr);
     if (pointee_behavior == TargetPointeeBehavior::kKeep) {
+      debugLifetimes("Inside KKeep pointee");
       // It's important to use "Extend" (not "Set") here because we process
       // initializers for member variables only _after_ the dataflow analysis
       // has run.
       HandlePointsToSetExtension({dest}, init_points_to, type,
                                  object_repository, points_to_map, constraints);
     } else {
+      debugLifetimes("Not inside KKeep pointee");
+
       points_to_map.SetPointerPointsToSet(dest, init_points_to);
     }
   }
